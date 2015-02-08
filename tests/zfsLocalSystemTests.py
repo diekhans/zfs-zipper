@@ -6,7 +6,6 @@ ZFS file systems and snapshot.  This may not run everywhere
 import sys,  unittest
 sys.path.insert(0, "..")
 from zfszipper import zfs
-from zfszipper.cmdrunner import CmdRunner
 
 debug = False
 
@@ -40,7 +39,7 @@ class ZfsLocalSystemTest(unittest.TestCase):
         return "\n".join(descs) + "\n"
             
     def testPoolsLoad(self):
-        descs = self.__zfsLoad(zfs.Zfs(CmdRunner()))
+        descs = self.__zfsLoad(zfs.Zfs())
         if debug:
             print descs
         self.assertStrCountMin(descs, "pool", 2)

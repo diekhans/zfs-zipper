@@ -32,7 +32,7 @@ def splitLinesToRows(lines):
 
 def splitTabLinesToRows(lines):
     "split newline separate lines with tab separated columns into a list of lists "
-    return tuple(map(lambda l: tuple("\t".split(l)), splitLinesToRows(lines)))
+    return tuple(map(lambda l: tuple(l.split("\t")), splitLinesToRows(lines)))
 
 def currentGmtTimeStr():
     return time.strftime("%Y-%m-%dT%T", time.gmtime())

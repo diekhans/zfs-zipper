@@ -1,9 +1,8 @@
 """
-Classes to support zfs-backuper.  Some of these are configuration objects.
+Classes to support zfs-zipper.  Some of these are configuration objects.
 """
-import os,re
+import os,re,logging
 from enum import Enum
-import logging
 from .zfs import ZfsPoolHealth
 from .typeops import asNameStrOrNone, asStrOrEmpty, currentGmtTimeStr
 logger = logging.getLogger()
@@ -34,21 +33,29 @@ class BackupRecorder(object):
     header = ("time", "action", "src1Snap", "src2Snap", "backupSnap", "size", "exception", "info")
 
     def __init__(self, recordTsvFile):
-        self.recordTsvFh = open(recordTsvFile, "a", buffering=1)  # line buffered
-        if self.recordTsvFh.tell() == 0:
-            self.recordTsvFh.write("\t".join(self.header) + "\n")
+        "if recordTsvFile is None, not record is made"
+        self.recordTsvFh = None
+        if recordTsvFile != None:
+            self.recordTsvFh = open(recordTsvFile, "a", buffering=1)  # line buffered
+            if self.recordTsvFh.tell() == 0:
+                self.recordTsvFh.write("\t".join(self.header) + "\n")
 
     def record(self, action, src1Snap=None, src2Snap=None, backupSnap=None, size=None, exception=None, info=None):
-        rec = (currentGmtTimeStrFunc(), action, asStrOrEmpty(src1Snap), asStrOrEmpty(src2Snap), asStrOrEmpty(backupSnap), asStrOrEmpty(size), asStrOrEmpty(exception), asStrOrEmpty(info))
-        self.recordTsvFh.write("\t".join(rec) + "\n")
+        if self.recordTsvFh != None:
+            rec = (currentGmtTimeStrFunc(), action, asStrOrEmpty(src1Snap), asStrOrEmpty(src2Snap), asStrOrEmpty(backupSnap), asStrOrEmpty(size), asStrOrEmpty(exception), asStrOrEmpty(info))
+            self.recordTsvFh.write("\t".join(rec) + "\n")
 
     def error(self, exception, src1Snap=None, src2Snap=None, backupSnap=None):
-        # make sure there are no newlines or tabs
-        msg = re.sub("\\s", " ", str(exception))
-        self.record("error", src1Snap, src2Snap, backupSnap, type(exception).__name__, msg)
+        if self.recordTsvFh != None:
+            # make sure there are no newlines or tabs
+            msg = re.sub("\\s", " ", str(exception))
+            self.record("error", src1Snap, src2Snap, backupSnap, type(exception).__name__, msg)
 
     def getFileName(self):
-        return self.recordTsvFh.name
+        if self.recordTsvFh != None:
+            return self.recordTsvFh.name
+        else:
+            return None
         
     def close(self):
         if self.recordTsvFh != None:
@@ -61,10 +68,14 @@ class BackupRecorder(object):
 class BackupSnapshot(object):
     """Parsed backup snapshot name.  Use create methods, not constructor"
     """
-    fullForm = "backuper_<GMT>_<backupset>_full_<backuppool>"
-    incrForm = "backuper_<GMT>_<backupset>_incr"
+    # backup sent names may name contain `_'
+    fullForm = "zipper_<GMT>_<backupset>_full_<backuppool>"
+    # re group:          0       1        5       6         
+    incrForm = "zipper_<GMT>_<backupset>_incr"
+    # re group:          0       1        7
 
-    prefix = "backuper"
+    prefix = "zipper_"
+    snapshotNameRe = re.compile("^"+prefix+"([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2})_(.+)_(((full)_(.+)$)|(incr$))")
 
     @staticmethod
     def createFromSnapshotName(snapshotNameSpec, dropFileSystem=False):
@@ -101,7 +112,7 @@ class BackupSnapshot(object):
         
     def getSnapshotName(self):
         "construct name without FS"
-        return self.prefix + "_" + self.timestamp + "_" + self.backupsetName + "_" + str(self.backupType) + (("_"+self.backupPoolName) if self.backupPoolName != None else "")
+        return self.prefix + self.timestamp + "_" + self.backupsetName + "_" + str(self.backupType) + (("_"+self.backupPoolName) if self.backupPoolName != None else "")
 
     def getFileSystemSnapshotName(self):
         "construct name with FS"
@@ -124,17 +135,21 @@ class BackupSnapshot(object):
     @staticmethod
     def __parseSnapshotName(name):
         "parse a simple snapshot name into (timestr, backupsetName, type, backupPoolName|None)"
-        parts = name.split('_')
-        if not (4 <= len(parts) <= 5):
-            raise ValueError("expected snapshot name in the form %s or %s, got `%s'" % (BackupSnapshot.fullForm, BackupSnapshot.incrForm, name))
-        if parts[0] != BackupSnapshot.prefix:
+        if not name.startswith(BackupSnapshot.prefix):
             raise ValueError("snapshot name doesn't start with %s, got `%s'" % (BackupSnapshot.prefix, name))
-        if parts[3] not in (str(BackupType.full), str(BackupType.incr)):
-            raise ValueError("snapshot type isn't %s or %s, got `%s' in `%s'" % (BackupType.full, BackupType.incr, parts[3], name))
-        return (parts[1], parts[2], parts[3], parts[4] if len(parts) > 4 else None)
+        # see fullForm,incrForm comments for explanation of groups
+        parse = BackupSnapshot.snapshotNameRe.match(name)
+        if parse == None:
+            raise ValueError("expected snapshot name in the form %s or %s, got `%s'" % (BackupSnapshot.fullForm, BackupSnapshot.incrForm, name))
+        timestr = parse.group(0)
+        backupSetName = parse.group(1)
+        backupType = parse.group(7) if parse.group(5) == None else parse.group(5)
+        backupPoolName = parse.group(6)
+        return (timestr, backupSetName, backupType, backupPoolName)
+
 
     @staticmethod
-    def isBackuperSnapshot(snapshotName):
+    def isZipperSnapshot(snapshotName):
         "is this one of ours? Maybe or my not include ZFS fs prefix"
         iBase = snapshotName.find('@')+1  # start of snapshot name, 0 if no fs in name
         return snapshotName.startswith(BackupSnapshot.prefix, iBase)
@@ -147,7 +162,7 @@ class BackupSnapshots(list):
 
     def __loadSnapshots(self, zfs, fileSystem):
         for zfsSnapshot in zfs.listSnapshots(fileSystem.name):
-            if BackupSnapshot.isBackuperSnapshot(zfsSnapshot.name):
+            if BackupSnapshot.isZipperSnapshot(zfsSnapshot.name):
                 self.append(BackupSnapshot.createFromSnapshotName(zfsSnapshot.name))
         self.reverse()
 
@@ -172,11 +187,8 @@ class BackupSnapshots(list):
         return None
 
             
-class BackupErrorStop(Exception):
-    "error were continuing to the next backup is a bad idea "
-    pass
-class BackupErrorSkip(Exception):
-    "error were continuing to the next backup is allowed "
+class BackupError(Exception):
+    "Backup error"
     pass
 
 class FsBackup(object):
@@ -192,30 +204,30 @@ class FsBackup(object):
 
         ## backup target
         self.backupPool = backupPool
-        self.backupFileSystemName = backupSetConf.getBackupPool(backupPool.name).determineBackupFileSystemName(sourceFileSystem)
+        self.backupFileSystemName = backupSetConf.getBackupPoolConf(backupPool.name).determineBackupFileSystemName(sourceFileSystem)
         # None if file system doesn't exist
-        self.backupFileSystem = zfs.getFileSystem(self.backupPool, self.backupFileSystemName)
+        self.backupFileSystem = zfs.getFileSystem(self.backupFileSystemName)
         self.backupSnapshots = BackupSnapshots(zfs, self.backupFileSystem)
 
     def __recordFull(self, recorder, sourceSnapshot, backupSnapshot, info):
         # full	test_src@snap1	481832
         # size	481832
         if len(info) != 2:
-            raise BackupErrorStop("expected 2 lines from ZFS send|receive full, got: " + str(info))
+            raise BackupError("expected 2 lines from ZFS send|receive full, got: " + str(info))
         info0 = info[0]
         if len(info0) != 3:
-            raise BackupErrorStop("expected 3 columns in ZFS send|receive full record, got: " + str(info0))
+            raise BackupError("expected 3 columns in ZFS send|receive full record, got: " + str(info0))
         if info0[0] != "full":
-            raise BackupErrorStop("expected 'full' in column 0 of ZFS send|receive full record, got: " + str(info0))
+            raise BackupError("expected 'full' in column 0 of ZFS send|receive full record, got: " + str(info0))
         # FIXME:
         # if info0[1] != sourceSnapshot.getFileSystemSnapshotName():
-        #     raise BackupErrorStop("expected snapshot name '" + sourceSnapshot.getFileSystemSnapshotName() + "' in column 1 of ZFS send|receive full record, got: " + str(info0))
+        #     raise BackupError("expected snapshot name '" + sourceSnapshot.getFileSystemSnapshotName() + "' in column 1 of ZFS send|receive full record, got: " + str(info0))
         recorder.record("full", sourceSnapshot.getFileSystemSnapshotName(), None, backupSnapshot.getFileSystemSnapshotName(), info0[2])
         
     def __backupFull(self, recorder):
         if (len(self.backupSnapshots) > 0) and not self.allowOverwrite:
-            raise BackupErrorSkip("skip backup of %s to %s: full backup snapshots exists and overwrite not specified" %
-                                  (self.sourceFileSystem.name, self.backupFileSystemName))
+            raise BackupError("backup of %s to %s: full backup snapshots exists and overwrite not specified" %
+                              (self.sourceFileSystem.name, self.backupFileSystemName))
         sourceSnapshot = BackupSnapshot.createCurrent(self.backupSetConf.name, BackupType.full, backupPool=self.backupPool, fileSystem=self.sourceFileSystem)
         backupSnapshot = BackupSnapshot.createFromSnapshot(sourceSnapshot, self.backupFileSystemName)
         logger.info("backup snapshot %s -> %s" % (sourceSnapshot, backupSnapshot))
@@ -234,24 +246,19 @@ class FsBackup(object):
                 if self.backupSnapshots.find(sourceSnapshot.getSnapshotName()) != None:
                     return incrSourceSnapshots  # found the common one
         # this shouldn't happen, should have been detected by  __checkForNewPoolForIncr
-        raise BackupErrorStop("BUG backup of %s to %s: can't find common snapshot" %
+        raise BackupError("BUG backup of %s to %s: can't find common snapshot" %
                               (self.sourceFileSystem.name, self.backupFileSystemName))
 
     def __recordIncr(self, recorder, prevSourceSnapshot, sourceSnapshot, backupSnapshot, info):
         # incremental	snap1	test_src@snap2	593632
         # size	481832
         if len(info) != 2:
-            raise BackupErrorStop("expected 2 lines from ZFS send|receive incremental, got: " + str(info))
+            raise BackupError("expected 2 lines from ZFS send|receive incremental, got: " + str(info))
         info0 = info[0]
         if len(info0) != 4:
-            raise BackupErrorStop("expected 4 columns in ZFS send|receive incremental record, got: " + str(info0))
+            raise BackupError("expected 4 columns in ZFS send|receive incremental record, got: " + str(info0))
         if info0[0] != "incremental":
-            raise BackupErrorStop("expected 'incremental' in column 0 of ZFS send|receive incremental record, got: " + str(info0))
-        # FIXME:
-        # if info0[1] != prevSourceSnapshot.getSnapshotName():
-        #     raise BackupErrorStop("expected snapshot name '" + prevSourceSnapshot.getSnapshotName() + "' in column 1 of ZFS send|receive full record, got: " + str(info0))
-        # if info0[2] != sourceSnapshot.getFileSystemSnapshotName():
-        #     raise BackupErrorStop("expected snapshot name '" + sourceSnapshot.getFileSystemSnapshotName() + "' in column 2 of ZFS send|receive full record, got: " + str(info0))
+            raise BackupError("expected 'incremental' in column 0 of ZFS send|receive incremental record, got: " + str(info0))
         recorder.record("incr", prevSourceSnapshot.getFileSystemSnapshotName(), sourceSnapshot.getFileSystemSnapshotName(), backupSnapshot.getFileSystemSnapshotName(), info0[2])
         
     def __makeIncrBackup(self, recorder, prevSourceSnapshot, sourceSnapshot):
@@ -281,8 +288,8 @@ class FsBackup(object):
         if haveCommonFull:
             return False  # have a common full, no need to force full
         elif (self.backupFileSystem != None) and not self.allowOverwrite:
-            raise BackupErrorSkip("skip incremental backup of %s to %s: no common full backup snapshot, backup pool %s already has the file system, must specify allowOverwrite to create a new full backup" %
-                                  (self.sourceFileSystem.name, self.backupFileSystemName, self.backupPool.name))
+            raise BackupError("incremental backup of %s to %s: no common full backup snapshot, backup pool %s already has the file system, must specify allowOverwrite to create a new full backup" %
+                              (self.sourceFileSystem.name, self.backupFileSystemName, self.backupPool.name))
         else:
             return True
 
@@ -311,55 +318,45 @@ class BackupSetBackup(object):
 
     def __findBackupPoolToUse(self):
         onlineBackupPools = []
-        for backupPoolConf in self.backupSetConf.backupPools:
+        for backupPoolConf in self.backupSetConf.backupPoolConfs:
             backupPool = self.__lookupOnlinePool(backupPoolConf.name)
             if backupPool != None:
                 onlineBackupPools.append(backupPool)
         if len(onlineBackupPools) == 0:
-            raise BackupErrorStop("no backup pool is online for backupset " + self.backupSetConf.name + ": in " + ",".join([backupPoolConf.name for backupPoolConf in self.backupPoolConf.backupPools]))
+            raise BackupError("no backup pool is online for backupset " + self.backupSetConf.name + ": in " + ",".join([backupPoolConf.name for backupPoolConf in self.backupPoolConf.backupPools]))
         elif len(onlineBackupPools) > 1:
-            raise BackupErrorStop("multiple backup pool is online for backupset " + self.backupSetConf.name + ": in " + ",".join([backupPool.name for backupPool in onlineBackupPools]))
+            raise BackupError("multiple backup pool is online for backupset " + self.backupSetConf.name + ": in " + ",".join([backupPool.name for backupPool in onlineBackupPools]))
         else:
             return onlineBackupPools[0]
 
     def __lookupOnlinePool(self, poolName):
         backupPool = self.zfs.getPool(poolName)
         if backupPool == None:
-            raise BackupErrorStop("unknown back pool in conf: " + backupPoolConf.name)
+            raise BackupError("unknown back pool in conf: " + poolName)
         if backupPool.health == ZfsPoolHealth.ONLINE:
             return backupPool
         else:
             return None
 
     def __getSourceFileSystem(self, sourceFileSystemConf):
-        sourceFileSystem = self.zfs.getFileSystem(sourceFileSystemConf.pool, sourceFileSystemConf.name)
+        sourceFileSystem = self.zfs.getFileSystem(sourceFileSystemConf.name)
         if sourceFileSystem == None:
-            raise BackupErrorStop("configured file system not in ZFS: " + sourceFileSystemConf.name)
+            raise BackupError("configured file system not in ZFS: " + sourceFileSystemConf.name)
         return sourceFileSystem
 
     def __fsBackup(self, backupType, sourceFileSystemConf):
         try:
-            sourceFileSystem = self.__getSourceFileSystem(sourceFileSystemConf)
-            fsBackup = FsBackup(self.zfs, self.backupSetConf, sourceFileSystem, self.backupPool, self.allowOverwrite)
+            fsBackup = FsBackup(self.zfs, self.backupSetConf,
+                                self.__getSourceFileSystem(sourceFileSystemConf),
+                                self.backupPool, self.allowOverwrite)
         except Exception, ex:
             self.recorder.error(ex)
             raise
         fsBackup.backup(self.recorder, backupType)
 
     def backupAll(self, backupType):
-        for sourceFileSystemConf in self.backupSetConf.sourceFileSystems:
+        for sourceFileSystemConf in self.backupSetConf.sourceFileSystemConfs:
             self.__fsBackup(backupType, sourceFileSystemConf)
 
-    def __getSourceFileSystemConf(self, sourceFileSystemName):
-        sourceFileSystemConf = self.backupSetConf.getSourceFileSystem(sourceFileSystemName)
-        if sourceFileSystemConf == None:
-            raise BackupErrorStop("file system not specified in conf: " + sourceFileSystemName)
-        return sourceFileSystemConf
-        
-    def backupOne(self, backupType, sourceFileSystemName):
-        try:
-            sourceFileSystemConf = self.__getSourceFileSystemConf(sourceFileSystemName)
-        except Exception, ex:
-            self.recorder.error(ex)
-            raise
+    def backupOne(self, backupType, sourceFileSystemConf):
         self.__fsBackup(backupType, sourceFileSystemConf)

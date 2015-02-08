@@ -18,25 +18,29 @@ class Pipeline2Exception(Exception):
 class AsyncProc(object):
     def __init__(self, cmd, stdin=None, stdout=None):
         self.cmd = cmd
-        self.stderrFh = tempfile.TemporaryFile()
-        self.proc = subprocess.Popen(cmd1, stdin=stdin, stdout=stdout, stderr=self.stderrFh)
-        if stdout != None:
-            self.proc.stdout.close()  # Allow process to receive a SIGPIPE if other process exits
+        self.stderrFh = tempfile.NamedTemporaryFile(delete=False)
+        self.proc = subprocess.Popen(cmd, stdin=stdin, stdout=stdout, stderr=self.stderrFh)
 
-    def wait(self):
-        "return stderr contents"
+    def waitNoThrow(self):
+        "return (stderr, None) or (stderr, exception) on error, logs errors"
         try:
             code = self.proc.wait()
             if code != 0:
                 raise subprocess.CalledProcessError(code, self.cmd, self.stderrFh.read())
-            return self.stderrFh.read()
+            self.stderrFh.seek(0)
+            return (self.stderrFh.read(), None)
+        except Exception, ex:
+            self.stderrFh.seek(0)
+            stderr = self.stderrFh.read()
+            logger.exception("command fails:" + " " .join(self.cmd) + " got " + stderr)
+            return (stderr, ex)
         finally:
             self.stderrFh.close()
         
         
 class CmdRunner(object):
     def __logCmd(self, cmd):
-        logger.debug("run command:" + " ".join(cmd) + "\n")
+        logger.debug("run: " + " ".join(cmd) + "\n")
 
     def run(self, cmd):
         "execute command, not output returned"
@@ -68,17 +72,9 @@ class CmdRunner(object):
         self.__logCmd(cmd1 + ["|"] + cmd2)
         p1 = AsyncProc(cmd1, stdout=subprocess.PIPE)
         p2 = AsyncProc(cmd2, stdin=p1.proc.stdout)
-        ex1 = ex2 = None
-        try:
-            stderr1 = p1.wait()
-        except Exception, e:
-            logger.exception("command failed:" + " " .join(cmd1))
-            ex1 = e
-        try:
-            stderr2 = p2.wait()
-        except Exception, e:
-            logger.exception("command failed:" + " " .join(cmd2))
-            ex2 = e
+        p1.proc.stdout.close()  # Allow process to receive a SIGPIPE if other process exits
+        stderr1, ex1 = p1.waitNoThrow()
+        stderr2, ex2 = p2.waitNoThrow()
         if (ex1 != None) or (ex2 != None):
             raise Pipeline2Exception(ex1, ex2)
         return (stderr1, stderr2)

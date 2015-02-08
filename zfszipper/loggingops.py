@@ -1,7 +1,7 @@
 """
 Operations associated with logging
 """
-import logging
+import sys, logging
 from logging.handlers import SysLogHandler
 
 

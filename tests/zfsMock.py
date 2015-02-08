@@ -25,16 +25,19 @@ class ZfsMock(object):
 
     def __buildPoolLookup(self, poolEntries):
         for poolEntry in poolEntries:
-            assert isinstance(poolEntry[0], ZfsPool)
+            if not isinstance(poolEntry[0], ZfsPool):
+                raise Exception("poolEntry not ZfsPool: %s %s" % (type(poolEntry[0]), str(poolEntry[0])))
             self.poolsByName[poolEntry[0].name] = poolEntry
             self.__buildFileSystemLookup(poolEntry[0].name, poolEntry[1])
             
     def __buildFileSystemLookup(self, poolName, fileSystemEntries):
         for fileSystemEntry in fileSystemEntries:
-            assert isinstance(fileSystemEntry[0], ZfsFileSystem)
+            if not isinstance(fileSystemEntry[0], ZfsFileSystem):
+                raise Exception("fileSystemEntry not ZfsFileSystem: %s %s" % (type(fileSystemEntry), str(fileSystemEntry)))
             self.fileSystemsByName[fileSystemEntry[0].name] = fileSystemEntry
             for snapshotEntry in fileSystemEntry[1]:
-                assert isinstance(snapshotEntry, ZfsSnapshot)
+                if not isinstance(snapshotEntry, ZfsSnapshot):
+                    raise Exception("snapshotEntry not ZfsSnapshot: %s %s" % (type(snapshotEntry), str(snapshotEntry)))
 
     def dump(self, fh):
         for poolEntry in self.poolsByName.values():
@@ -50,11 +53,10 @@ class ZfsMock(object):
     def listFileSystems(self, pool):
         return self.poolsByName[asNameOrStr(pool)][1]
 
-    def getFileSystem(self, pool, fileSystemName):
+    def getFileSystem(self, fileSystemName):
         entry = self.fileSystemsByName.get(fileSystemName)
         if entry == None:
             return None
-        assert(entry[0].poolName == asNameOrStr(pool))
         return entry[0]
 
     def listPools(self):
