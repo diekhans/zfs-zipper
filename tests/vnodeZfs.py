@@ -37,7 +37,7 @@ class Cleanup(object):
         runCmd(["zpool", "destroy", "-f", poolName])
 
     def __cleanupTestDevices(self, dev):
-        runCmd(["mdconfig", "-d", "-u", dev.unit])
+        runCmd(["mdconfig", "-d", "-u", dev.unit, "-o", "force"])
         os.unlink(dev.file)
 
     def cleanup(self):
@@ -76,6 +76,7 @@ class ZfsVnodePool(object):
         if self.poolName in runCmd(["zpool", "list", "-H", "-o", "name"]):
             self.__destroyZfsPool()
         runCmd(["zpool", "create", "-m", zfsFs.mountPoint, self.poolName, self.unitDev])
+        runCmd(["zfs", "set", "atime=off", self.poolName])
 
     def getFileSystem(self, fileSystemName):
         for zfsFs in self.fileSystems:

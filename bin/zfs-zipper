@@ -9,15 +9,14 @@ file system. Snapshots of the source file systems are use to manage the backup
 on the BackupPool file systems.
 
 Snapshots are named in the form:
-    zipper_<GMT>_<backupset>_full_<backuppool>
+    zipper_<GMT>_<backupset>_full
     zipper_<GMT>_<backupset>_incr
 
-When a source FS is first backed up to a BackupPool, a full snapshot, specific
-to that pool is created.  This serves as a baseline for the incrementals.  If
-the source full pool is to be destroyed, a new full backup for the target pool
-must first be made.  The corresponding backup full snapshot does not need
-to be destroyed.  All that matters is the latest full is on both the source FS
-and the specific BackupPool FS.  
+When a source FS is first backed up to a BackupPool, a full snapshot is
+created.  This serves as a baseline for the incremental backups.  If the
+source full pool is to be destroyed, a new full backup for the target pool
+must first be made.All that matters is the latest full is on both the source
+FS and the BackupPool FS.
 """
 
 import os, sys, re, subprocess, time, argparse, fcntl, logging
@@ -54,12 +53,13 @@ def parseCommand():
                         help="""Backup only this set.  If not specified, all sets in config file are backed up.""")
     parser.add_argument("--sourceFileSystem", metavar="name", dest="sourceFileSystemNames", action="append",
                         help="""Backup only this ZFS file system (not mount point).   Must specify --backUpSet. This option maybe repeated.""")
-    parser.add_argument("--stderrLogLevel", metavar="logLevel", dest="stderrLogLevel", action="store", default="error",
+    parser.add_argument("--verboseLevel", metavar="logLevel", dest="verboseLevel", action="store", default=None,
                         help="""syslog style level name for logging to stderr""")
     args = parser.parse_args()
     setattr(args, "config", evalConfigFile(args.configPy))
     checkBackupSubsetArgs(args)
-    args.stderrLogLevel = loggingops.parseLevel(args.stderrLogLevel)
+    if args.verboseLevel != None:
+        args.verboseLevel = loggingops.parseLevel(args.verboseLevel)
     return args
 
 def checkBackupSubsetArgs(args):
@@ -113,7 +113,9 @@ class Backup(object):
             self.__backupAllSets(recorder)
 
 args = parseCommand()
-loggingops.setupStderrLogger(args.stderrLogLevel)
+if (args.config.syslogFacility == None) or (args.verboseLevel != None):
+    level = args.verboseLevel if args.verboseLevel != None else loggingops.parseLevel("error")
+    loggingops.setupStderrLogger(level)
 if args.config.syslogFacility != None:
     loggingops.setupSyslogLogger(args.config.syslogFacility, args.config.syslogLevel, programName=os.path.basename(sys.argv[0]))
     
@@ -122,6 +124,7 @@ try:
     backup.runBackups()
 except Exception, ex:
     logger.exception("zfs-zipper backup of failed")
-    raise
+    sys.stderr.write("error: " + str(ex) + " (specify --verboseLevel=error for more details\n")
+    sys.exit(1)
 
 logger.info("zfs-zipper backup of complete")

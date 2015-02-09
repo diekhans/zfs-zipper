@@ -1,7 +1,7 @@
 """
 Tests that run on FreeBSD with ZFS in vnode file systems.  Must run as root, sadly.
 """
-import os, sys, argparse
+import os, sys, argparse, subprocess
 from collections import namedtuple
 from testops import *
 from vnodeZfs import *
@@ -30,7 +30,9 @@ class VNodeDiskTests(object):
     testRecordPat = testVarDir + "/zfszipper.%Y-%m.record.tsv"
 
     testSourceFs1Files = ("one", "two", "three")
-    testSourceFs2Files = ("fs2/one", "fs2/two", "fs2/three")
+    testSourceFs1Files2 = ("six", "seven", "eight")
+    testSourceFs2Files = ("one1", "two2", "three3")
+    testSourceFs2Files2 = ("six6", "seven7", "eight8")
 
     configPyCode = """
 backupSetConf = BackupSetConf("%(testBackupSetName)s", ["%(testSourceFs1)s","%(testSourceFs2)s"],
@@ -54,7 +56,7 @@ config = BackupConf([backupSetConf], lockFile="%(testLockFile)s", recordFilePatt
 
     def __writeFile(self, path, contents):
         with open(path, "w") as fh:
-            fh.write(contents)
+            fh.write(contents + "\n")
 
     def __writeTestFiles(self, pool, fileSystem, relFileNames, contentFunction=lambda x:x):
         mountPoint = pool.getFileSystem(fileSystem).mountPoint
@@ -71,12 +73,43 @@ config = BackupConf([backupSetConf], lockFile="%(testLockFile)s", recordFilePatt
             cmd.append("--stderrLogLevel="+self.zipperLogLevel)    
         runCmd(cmd)
 
-    def runTest(self):
+    @staticmethod
+    def __upcaseFunc(x):
+        return x.upper()
+
+    def __test1Full1(self, sourcePool, backupPool, configPy):
+        self.__writeTestFiles(sourcePool, self.testSourceFs1, self.testSourceFs1Files)
+        self.__writeTestFiles(sourcePool, self.testSourceFs2, self.testSourceFs2Files)
+        self.__runZfsZipper(configPy, full=True, allowOverwrite=False)
+
+    def __test1Incr1(self, sourcePool, backupPool, configPy):
+        self.__writeTestFiles(sourcePool, self.testSourceFs1, self.testSourceFs1Files[1:2], self.__upcaseFunc)
+        self.__writeTestFiles(sourcePool, self.testSourceFs2, self.testSourceFs2Files[0:1], self.__upcaseFunc)
+        self.__runZfsZipper(configPy, full=False, allowOverwrite=False)
+
+    def __test1Incr2(self, sourcePool, backupPool, configPy):
+        self.__writeTestFiles(sourcePool, self.testSourceFs1, self.testSourceFs1Files[0:2], self.__upcaseFunc)
+        self.__writeTestFiles(sourcePool, self.testSourceFs2, self.testSourceFs2Files[2:2], self.__upcaseFunc)
+        self.__writeTestFiles(sourcePool, self.testSourceFs1, self.testSourceFs1Files2)
+        self.__writeTestFiles(sourcePool, self.testSourceFs2, self.testSourceFs2Files2)
+        self.__runZfsZipper(configPy, full=False, allowOverwrite=False)
+
+    def __test1FullOverwriteFail(self, sourcePool, backupPool, configPy):
+        try:
+            self.__runZfsZipper(configPy, full=True, allowOverwrite=False)
+        except subprocess.CalledProcessError, ex:
+            expectMsg = "zfszipper_test_source to zfszipper_test_backup/zfszipper_test_source: full backup snapshots exists and overwrite not specified"
+            if ex.message != expectMsg:
+                raise Exception("expected error with message \"%s\", got \"%s\"" %s expectMsg)
+        
+    def runTest1(self):
         sourcePool, backupPool = self.__testInit()
         configPy = writeConfigPy(self.testEtcDir, self.configPyCode)
-        self.__writeTestFiles(sourcePool, self.testSourceFs1, self.testSourceFs1Files)
-        self.__runZfsZipper(configPy, full=True, allowOverwrite=False)
-        
+        self.__test1Full1(sourcePool, backupPool, configPy)
+        self.__test1Incr1(sourcePool, backupPool, configPy)
+        self.__test1Incr2(sourcePool, backupPool, configPy)
+        self.__test1FullOverwriteFail(sourcePool, backupPool, configPy)
+
 def parseCommand():
     usage="""%prog [options] test|cleanup
     runs tests or do a cleanup
@@ -95,6 +128,6 @@ args = parseCommand()
 # ensure subprocess can find library
 os.environ["PYTHONPATH"] = "..:" + os.environ.get("PYTHONPATH", "")
 if args.action == "test":
-    VNodeDiskTests().runTest()
+    VNodeDiskTests().runTest1()
 else:
     VNodeDiskTests.cleanup()

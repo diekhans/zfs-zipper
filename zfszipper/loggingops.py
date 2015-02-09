@@ -43,8 +43,8 @@ def setupSyslogLogger(facility, level, programName=None):
     programName specified, each line is prefixed with the name"""
     handler = SysLogHandler(address="/dev/log", facility=facility)
     # add a formatter that includes the program name as the syslog ident
-    if progName != None:
-        handler.setFormatter(logging.Formatter(fmt=progName+" %(message)s"))
+    if programName != None:
+        handler.setFormatter(logging.Formatter(fmt=programName+" %(message)s"))
     handler.setLevel(level)
     setupLogger(handler)
     

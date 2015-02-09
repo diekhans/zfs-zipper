@@ -13,7 +13,7 @@ class Pipeline2Exception(Exception):
         self.except2 = except2
         msgs = [str(except1) if except1 != None else "",
                 str(except2) if except1 != None else ""]
-        Exception.__init__(self, msgs.join("\n"))
+        Exception.__init__(self, "\n".join(msgs))
 
 class AsyncProc(object):
     def __init__(self, cmd, stdin=None, stdout=None):
@@ -32,7 +32,7 @@ class AsyncProc(object):
         except Exception, ex:
             self.stderrFh.seek(0)
             stderr = self.stderrFh.read()
-            logger.exception("command fails:" + " " .join(self.cmd) + " got " + stderr)
+            logger.exception("failed: " + " " .join(self.cmd) + " got " + stderr)
             return (stderr, ex)
         finally:
             self.stderrFh.close()

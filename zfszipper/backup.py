@@ -69,50 +69,47 @@ class BackupSnapshot(object):
     """Parsed backup snapshot name.  Use create methods, not constructor"
     """
     # backup sent names may name contain `_'
-    fullForm = "zipper_<GMT>_<backupset>_full_<backuppool>"
-    # re group:          0       1        5       6         
+    fullForm = "zipper_<GMT>_<backupset>_full"
     incrForm = "zipper_<GMT>_<backupset>_incr"
-    # re group:          0       1        7
+    # re group:          1       2        3
 
     prefix = "zipper_"
-    snapshotNameRe = re.compile("^"+prefix+"([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2})_(.+)_(((full)_(.+)$)|(incr$))")
+    snapshotNameRe = re.compile("^"+prefix+"([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2})_(.+)_(full|incr)$")
 
     @staticmethod
     def createFromSnapshotName(snapshotNameSpec, dropFileSystem=False):
         "Keep file systems name, unless drop specified"
         fileSystemName, snapshotName = BackupSnapshot.splitZfsSnapshotName(snapshotNameSpec)
-        timestamp, backupsetName, backupType, backupPoolName = BackupSnapshot.__parseSnapshotName(snapshotName)
+        timestamp, backupsetName, backupType = BackupSnapshot.__parseSnapshotName(snapshotName)
         if dropFileSystem:
             fileSystemName = None
-        return BackupSnapshot(fileSystemName=fileSystemName, timestamp=timestamp, backupsetName=backupsetName, backupType=backupType, backupPoolName=backupPoolName)
+        return BackupSnapshot(fileSystemName=fileSystemName, timestamp=timestamp, backupsetName=backupsetName, backupType=backupType)
 
     @staticmethod
     def createFromSnapshot(snapshot, fileSystem=None):
         "create from another snapshot, excluding file system, but possible setting a new one"
         return BackupSnapshot(fileSystemName=asNameStrOrNone(fileSystem),
-                              timestamp=snapshot.timestamp, backupsetName=snapshot.backupsetName, backupType=snapshot.backupType, backupPoolName=snapshot.backupPoolName)
+                              timestamp=snapshot.timestamp, backupsetName=snapshot.backupsetName, backupType=snapshot.backupType)
 
     @staticmethod
     def createCurrent(backupsetName, backupType, backupPool=None, fileSystem=None):
         "create using current timestamp.  The backupType argument can be Backtype or string."
-        return BackupSnapshot(timestamp=currentGmtTimeStrFunc(), backupsetName=backupsetName, backupType=backupType, backupPoolName=asNameStrOrNone(backupPool), fileSystemName=asNameStrOrNone(fileSystem))
+        return BackupSnapshot(timestamp=currentGmtTimeStrFunc(), backupsetName=backupsetName, backupType=backupType, fileSystemName=asNameStrOrNone(fileSystem))
 
-    def __init__(self, fileSystemName=None, timestamp=None, backupsetName=None, backupType=None, backupPoolName=None):
+    def __init__(self, fileSystemName=None, timestamp=None, backupsetName=None, backupType=None):
         "use create methods, don't call this.  The backupType argument can be Backtype or string."
         self.fileSystemName = fileSystemName
         self.timestamp = timestamp
         self.backupsetName = backupsetName
         self.backupType = BackupType.parse(backupType) if isinstance(backupType, str) else backupType
-        self.backupPoolName = backupPoolName
         assert self.backupType in (BackupType.incr, BackupType.full)
-        assert ((self.backupType == BackupType.full) and (self.backupPoolName != None)) or ((self.backupType == BackupType.incr) and (self.backupPoolName == None))
 
     def __str__(self):
         return self.getFileSystemSnapshotName()
         
     def getSnapshotName(self):
         "construct name without FS"
-        return self.prefix + self.timestamp + "_" + self.backupsetName + "_" + str(self.backupType) + (("_"+self.backupPoolName) if self.backupPoolName != None else "")
+        return self.prefix + self.timestamp + "_" + self.backupsetName + "_" + str(self.backupType)
 
     def getFileSystemSnapshotName(self):
         "construct name with FS"
@@ -134,18 +131,16 @@ class BackupSnapshot(object):
 
     @staticmethod
     def __parseSnapshotName(name):
-        "parse a simple snapshot name into (timestr, backupsetName, type, backupPoolName|None)"
+        "parse a simple snapshot name into (timestr, backupsetName, type)"
         if not name.startswith(BackupSnapshot.prefix):
             raise ValueError("snapshot name doesn't start with %s, got `%s'" % (BackupSnapshot.prefix, name))
-        # see fullForm,incrForm comments for explanation of groups
         parse = BackupSnapshot.snapshotNameRe.match(name)
         if parse == None:
             raise ValueError("expected snapshot name in the form %s or %s, got `%s'" % (BackupSnapshot.fullForm, BackupSnapshot.incrForm, name))
-        timestr = parse.group(0)
-        backupSetName = parse.group(1)
-        backupType = parse.group(7) if parse.group(5) == None else parse.group(5)
-        backupPoolName = parse.group(6)
-        return (timestr, backupSetName, backupType, backupPoolName)
+        timestr = parse.group(1)
+        backupSetName = parse.group(2)
+        backupType = parse.group(3)
+        return (timestr, backupSetName, backupType)
 
 
     @staticmethod
@@ -166,27 +161,23 @@ class BackupSnapshots(list):
                 self.append(BackupSnapshot.createFromSnapshotName(zfsSnapshot.name))
         self.reverse()
 
-    def findNewestFullSnapshot(self, backupPool):
-        for snapshot in self:
-            if (snapshot.backupType == snapshotType) and (snapshot.backupPoolName == backupPool.name):
-                return snapshot
-        return None
-
-    def findNewestCommonFull(self, otherBackupSnapshots, backupPool):
+    def findNewestCommonFull(self, otherBackupSnapshots):
         "return snapshot of the newest common full snapshot"
         for snapshot in self:
-            if (snapshot.backupType == BackupType.full) and (snapshot.backupPoolName == backupPool.name) and otherBackupSnapshots.find(snapshot.getSnapshotName()):
+            if (snapshot.backupType == BackupType.full) and (otherBackupSnapshots.find(snapshot.getSnapshotName()) != None):
                 return snapshot
         return None
-
     
-    def find(self, snapshotName):
-        for snapshot in self:
-            if snapshot.getSnapshotName() == snapshotName:
-                return snapshot
-        return None
+    def findIdx(self, snapshotName):
+        for idx in xrange(len(self)):
+            if self[idx].getSnapshotName() == snapshotName:
+                return idx
+        return -1
 
-            
+    def find(self, snapshotName):
+        idx = self.findIdx(snapshotName)
+        return self[idx] if idx >= 0 else None
+
 class BackupError(Exception):
     "Backup error"
     pass
@@ -219,9 +210,6 @@ class FsBackup(object):
             raise BackupError("expected 3 columns in ZFS send|receive full record, got: " + str(info0))
         if info0[0] != "full":
             raise BackupError("expected 'full' in column 0 of ZFS send|receive full record, got: " + str(info0))
-        # FIXME:
-        # if info0[1] != sourceSnapshot.getFileSystemSnapshotName():
-        #     raise BackupError("expected snapshot name '" + sourceSnapshot.getFileSystemSnapshotName() + "' in column 1 of ZFS send|receive full record, got: " + str(info0))
         recorder.record("full", sourceSnapshot.getFileSystemSnapshotName(), None, backupSnapshot.getFileSystemSnapshotName(), info0[2])
         
     def __backupFull(self, recorder):
@@ -237,14 +225,12 @@ class FsBackup(object):
 
     def __buildIncrStapshotList(self):
         """build list of source snapshots that should be backed in the incremental backup.  The
-        first will be the latest common, the rest will not be in the backup.  It will not include
-        full backups for the other pool."""
-        incrSourceSnapshots = []
+        first will be the latest common, the rest will not be in the backup."""
+        sourceSnapshots = []
         for sourceSnapshot in self.sourceSnapshots:
-            if (sourceSnapshot.backupType == BackupType.incr) or (sourceSnapshot.backupPoolName == self.backupPool.name):
-                incrSourceSnapshots.insert(0, sourceSnapshot)
-                if self.backupSnapshots.find(sourceSnapshot.getSnapshotName()) != None:
-                    return incrSourceSnapshots  # found the common one
+            sourceSnapshots.insert(0, sourceSnapshot)
+            if self.backupSnapshots.find(sourceSnapshot.getSnapshotName()) != None:
+                return sourceSnapshots  # found the common one
         # this shouldn't happen, should have been detected by  __checkForNewPoolForIncr
         raise BackupError("BUG backup of %s to %s: can't find common snapshot" %
                               (self.sourceFileSystem.name, self.backupFileSystemName))
@@ -281,17 +267,17 @@ class FsBackup(object):
         self.__makeIncrBackup(recorder, prevSourceSnapshot, sourceSnapshot)
 
     def __checkForNewPoolForIncr(self):
-        """check to see if we are doing an incremental, however the pool doesn't have a common
+        """Check to see if we are doing an incremental and the pool doesn't have a common
         full.  If the pool doesn't have the file system, then we will do a full.  Otherwise,
         allowOverwrite must have been specified"""
-        haveCommonFull = (self.backupSnapshots.findNewestCommonFull(self.sourceSnapshots, self.backupPool) != None)
+        haveCommonFull = (self.backupSnapshots.findNewestCommonFull(self.sourceSnapshots) != None)
         if haveCommonFull:
             return False  # have a common full, no need to force full
         elif (self.backupFileSystem != None) and not self.allowOverwrite:
             raise BackupError("incremental backup of %s to %s: no common full backup snapshot, backup pool %s already has the file system, must specify allowOverwrite to create a new full backup" %
                               (self.sourceFileSystem.name, self.backupFileSystemName, self.backupPool.name))
         else:
-            return True
+            return True # force full
 
     def backup(self, recorder, backupType):
         logger.info("backup: %s  backupSet %s  %s -> %s overwrite:%s" %

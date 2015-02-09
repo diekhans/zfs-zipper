@@ -65,7 +65,7 @@ class BackupSnapshotTests(unittest.TestCase):
     testPool = "swimming"
     testFs1 = "zztop/opt"
     testFs2 = "funpool1/zztop/opt"
-    fullTestName = "zipper_1979-01-20T16:14:05_funbackset_full_funpool1"
+    fullTestName = "zipper_1979-01-20T16:14:05_funbackset_full"
     incrTestName = "zipper_2001-01-20T16:14:05_funbackset_incr"
 
     @staticmethod
@@ -102,11 +102,11 @@ class BackupSnapshotTests(unittest.TestCase):
 
     def testCurrentFull(self):
         ss = BackupSnapshot.createCurrent("someset", BackupSnapshot.full, "somepool", fakeZfsFileSystem("somefs", "somepool"))
-        self.assertRegexpMatches(str(ss), "^somefs@zipper_[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}_someset_full_somepool$")
+        self.assertRegexpMatches(str(ss), "^somefs@zipper_[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}_someset_full$")
 
     def testCurrentFull(self):
         ss = BackupSnapshot.createCurrent("someset", BackupType.full, "somepool", fakeZfsFileSystem("somefs", "somepool"))
-        self.assertRegexpMatches(str(ss), "^somefs@zipper_[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}_someset_full_somepool$")
+        self.assertRegexpMatches(str(ss), "^somefs@zipper_[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}_someset_full$")
 
     def testCurrentIncr(self):
         ss = BackupSnapshot.createCurrent("someset", BackupType.incr)
@@ -151,16 +151,16 @@ class BackuperTests(unittest.TestCase):
     backupPool2Fs1Off = fakeZfsFileSystem("backupPool2/srcPool1", backupPool2Off)
     backupPool2Fs2Off = fakeZfsFileSystem("backupPool2/srcPool1/srcPool1Fs2", backupPool2Off)
 
-    backupPool1Fs1Snapshots = (ZfsSnapshot('zipper_2015-01-01T17:30:34_testBackupSet_full_backupPool1'),
+    backupPool1Fs1Snapshots = (ZfsSnapshot('zipper_2015-01-01T17:30:34_testBackupSet_full'),
                                ZfsSnapshot('zipper_2015-02-01T17:30:34_testBackupSet_incr'),
                                ZfsSnapshot('zipper_2015-03-02T17:30:34_testBackupSet_incr'))
-    backupPool1Fs2Snapshots = (ZfsSnapshot('zipper_2015-01-01T17:30:34_testBackupSet_full_backupPool1'),
+    backupPool1Fs2Snapshots = (ZfsSnapshot('zipper_2015-01-01T17:30:34_testBackupSet_full'),
                                ZfsSnapshot('zipper_2015-02-01T17:30:34_testBackupSet_incr'),
                                ZfsSnapshot('zipper_2015-03-02T17:30:34_testBackupSet_incr')) 
-    backupPool2Fs1Snapshots = (ZfsSnapshot('zipper_2015-01-01T17:30:34_testBackupSet_full_backupPool2'),
+    backupPool2Fs1Snapshots = (ZfsSnapshot('zipper_2015-01-01T17:30:34_testBackupSet_full'),
                                ZfsSnapshot('zipper_2015-02-01T17:30:34_testBackupSet_incr'),
                                ZfsSnapshot('zipper_2015-03-02T17:30:34_testBackupSet_incr'))
-    backupPool2Fs2Snapshots = (ZfsSnapshot('zipper_2015-01-01T17:30:34_testBackupSet_full_backupPool2'),
+    backupPool2Fs2Snapshots = (ZfsSnapshot('zipper_2015-01-01T17:30:34_testBackupSet_full'),
                                ZfsSnapshot('zipper_2015-02-01T17:30:34_testBackupSet_incr'),
                                ZfsSnapshot('zipper_2015-03-02T17:30:34_testBackupSet_incr')) 
 
@@ -229,18 +229,18 @@ class BackuperTests(unittest.TestCase):
     def testInitialFull(self):
         GmtTimeFaker.setTime("2001-01-01")
         zfs = self.__mkInitialZfs()
-        zfs.addSendRecvInfos(((("full", "srcPool1@zipper_2015-02-01T20:23:37_testBackupSet_full_backupPool1", "50000"), ("size", "50000")),
-                              (("full", "srcPool1/srcPool1Fs2@zipper_2015-02-01T20:23:37_testBackupSet_full_backupPool1", "50000"), ("size", "50000"))))
+        zfs.addSendRecvInfos(((("full", "srcPool1@zipper_2015-02-01T20:23:37_testBackupSet_full", "50000"), ("size", "50000")),
+                              (("full", "srcPool1/srcPool1Fs2@zipper_2015-02-01T20:23:37_testBackupSet_full", "50000"), ("size", "50000"))))
         recorder = TestBackupRecorder(self.id())
         self.__twoFsBackup(zfs, recorder, BackupType.full)
         self.__assertActions(zfs,
-                             ['zfs snapshot srcPool1@zipper_2001-01-01T00:00:00_testBackupSet_full_backupPool1',
-                              'zfs send -P srcPool1@zipper_2001-01-01T00:00:00_testBackupSet_full_backupPool1 | zfs receive backupPool1/srcPool1@zipper_2001-01-01T00:00:00_testBackupSet_full_backupPool1',
-                              'zfs snapshot srcPool1/srcPool1Fs2@zipper_2001-01-01T00:00:02_testBackupSet_full_backupPool1',
-                              'zfs send -P srcPool1/srcPool1Fs2@zipper_2001-01-01T00:00:02_testBackupSet_full_backupPool1 | zfs receive backupPool1/srcPool1/srcPool1Fs2@zipper_2001-01-01T00:00:02_testBackupSet_full_backupPool1'])
+                             ['zfs snapshot srcPool1@zipper_2001-01-01T00:00:00_testBackupSet_full',
+                              'zfs send -P srcPool1@zipper_2001-01-01T00:00:00_testBackupSet_full | zfs receive backupPool1/srcPool1@zipper_2001-01-01T00:00:00_testBackupSet_full',
+                              'zfs snapshot srcPool1/srcPool1Fs2@zipper_2001-01-01T00:00:02_testBackupSet_full',
+                              'zfs send -P srcPool1/srcPool1Fs2@zipper_2001-01-01T00:00:02_testBackupSet_full | zfs receive backupPool1/srcPool1/srcPool1Fs2@zipper_2001-01-01T00:00:02_testBackupSet_full'])
         self.__assertRecorded(recorder,
-                              ['2001-01-01T00:00:01\tfull\tsrcPool1@zipper_2001-01-01T00:00:00_testBackupSet_full_backupPool1\t\tbackupPool1/srcPool1@zipper_2001-01-01T00:00:00_testBackupSet_full_backupPool1\t50000\t\t',
-                               '2001-01-01T00:00:03\tfull\tsrcPool1/srcPool1Fs2@zipper_2001-01-01T00:00:02_testBackupSet_full_backupPool1\t\tbackupPool1/srcPool1/srcPool1Fs2@zipper_2001-01-01T00:00:02_testBackupSet_full_backupPool1\t50000\t\t'])
+                              ['2001-01-01T00:00:01\tfull\tsrcPool1@zipper_2001-01-01T00:00:00_testBackupSet_full\t\tbackupPool1/srcPool1@zipper_2001-01-01T00:00:00_testBackupSet_full\t50000\t\t',
+                               '2001-01-01T00:00:03\tfull\tsrcPool1/srcPool1Fs2@zipper_2001-01-01T00:00:02_testBackupSet_full\t\tbackupPool1/srcPool1/srcPool1Fs2@zipper_2001-01-01T00:00:02_testBackupSet_full\t50000\t\t'])
         del recorder
         
     def testIncr1(self):
@@ -248,18 +248,18 @@ class BackuperTests(unittest.TestCase):
         GmtTimeFaker.setTime("2001-01-02")
         zfs = self.__mkBackupPool1Zfs(self.backupPool1Fs1Snapshots[0:1],
                                       self.backupPool1Fs2Snapshots[0:1])
-        zfs.addSendRecvInfos(((("incremental", "zipper_2015-01-01T17:30:34_testBackupSet_full_backupPool1", "srcPool1@zipper_2015-01-01T17:30:34_testBackupSet_incr", "50000"), ("size", "50000")),
-                              (("incremental", "zipper__testBackupSet_full_backupPool1", "srcPool1/srcPool1Fs2@zipper_2015-01-01T17:30:34_testBackupSet_incr", "50000"), ("size", "50000"))))
+        zfs.addSendRecvInfos(((("incremental", "zipper_2015-01-01T17:30:34_testBackupSet_full", "srcPool1@zipper_2015-01-01T17:30:34_testBackupSet_incr", "50000"), ("size", "50000")),
+                              (("incremental", "zipper__testBackupSet_full", "srcPool1/srcPool1Fs2@zipper_2015-01-01T17:30:34_testBackupSet_incr", "50000"), ("size", "50000"))))
         recorder = TestBackupRecorder(self.id())
         self.__twoFsBackup(zfs, recorder, BackupType.incr)
         self.__assertActions(zfs,
                              ['zfs snapshot srcPool1@zipper_2001-01-02T00:00:00_testBackupSet_incr',
-                              'zfs send -P -i zipper_2015-01-01T17:30:34_testBackupSet_full_backupPool1 srcPool1@zipper_2001-01-02T00:00:00_testBackupSet_incr | zfs receive backupPool1/srcPool1@zipper_2001-01-02T00:00:00_testBackupSet_incr',
+                              'zfs send -P -i zipper_2015-01-01T17:30:34_testBackupSet_full srcPool1@zipper_2001-01-02T00:00:00_testBackupSet_incr | zfs receive backupPool1/srcPool1@zipper_2001-01-02T00:00:00_testBackupSet_incr',
                               'zfs snapshot srcPool1/srcPool1Fs2@zipper_2001-01-02T00:00:02_testBackupSet_incr',
-                              'zfs send -P -i zipper_2015-01-01T17:30:34_testBackupSet_full_backupPool1 srcPool1/srcPool1Fs2@zipper_2001-01-02T00:00:02_testBackupSet_incr | zfs receive backupPool1/srcPool1/srcPool1Fs2@zipper_2001-01-02T00:00:02_testBackupSet_incr'])
+                              'zfs send -P -i zipper_2015-01-01T17:30:34_testBackupSet_full srcPool1/srcPool1Fs2@zipper_2001-01-02T00:00:02_testBackupSet_incr | zfs receive backupPool1/srcPool1/srcPool1Fs2@zipper_2001-01-02T00:00:02_testBackupSet_incr'])
         self.__assertRecorded(recorder,
-                              ['2001-01-02T00:00:01\tincr\tzipper_2015-01-01T17:30:34_testBackupSet_full_backupPool1\tsrcPool1@zipper_2001-01-02T00:00:00_testBackupSet_incr\tbackupPool1/srcPool1@zipper_2001-01-02T00:00:00_testBackupSet_incr\tsrcPool1/srcPool1Fs2@zipper_2015-01-01T17:30:34_testBackupSet_incr\t\t',
-                               '2001-01-02T00:00:03\tincr\tzipper_2015-01-01T17:30:34_testBackupSet_full_backupPool1\tsrcPool1/srcPool1Fs2@zipper_2001-01-02T00:00:02_testBackupSet_incr\tbackupPool1/srcPool1/srcPool1Fs2@zipper_2001-01-02T00:00:02_testBackupSet_incr\tsrcPool1@zipper_2015-01-01T17:30:34_testBackupSet_incr\t\t'])
+                              ['2001-01-02T00:00:01\tincr\tzipper_2015-01-01T17:30:34_testBackupSet_full\tsrcPool1@zipper_2001-01-02T00:00:00_testBackupSet_incr\tbackupPool1/srcPool1@zipper_2001-01-02T00:00:00_testBackupSet_incr\tsrcPool1/srcPool1Fs2@zipper_2015-01-01T17:30:34_testBackupSet_incr\t\t',
+                               '2001-01-02T00:00:03\tincr\tzipper_2015-01-01T17:30:34_testBackupSet_full\tsrcPool1/srcPool1Fs2@zipper_2001-01-02T00:00:02_testBackupSet_incr\tbackupPool1/srcPool1/srcPool1Fs2@zipper_2001-01-02T00:00:02_testBackupSet_incr\tsrcPool1@zipper_2015-01-01T17:30:34_testBackupSet_incr\t\t'])
         del recorder
 
     def testIncr2(self):
@@ -297,18 +297,18 @@ class BackuperTests(unittest.TestCase):
         GmtTimeFaker.setTime("1969-02-01")
         zfs = self.__mkBackupPool1Zfs(self.backupPool1Fs1Snapshots[0:3],
                                       self.backupPool1Fs2Snapshots[0:3])
-        zfs.addSendRecvInfos(((("full", "srcPool1@zipper_1969-02-01T00:00:00_testBackupSet_full_backupPool1", "50000"), ("size", "50000")),
-                              (("full", "srcPool1/srcPool1Fs2@zipper_1969-02-01T00:00:02_testBackupSet_full_backupPool1", "50000"), ("size", "50000"))))
+        zfs.addSendRecvInfos(((("full", "srcPool1@zipper_1969-02-01T00:00:00_testBackupSet_full", "50000"), ("size", "50000")),
+                              (("full", "srcPool1/srcPool1Fs2@zipper_1969-02-01T00:00:02_testBackupSet_full", "50000"), ("size", "50000"))))
         recorder = TestBackupRecorder(self.id())
         self.__twoFsBackup(zfs, recorder, BackupType.full, allowOverwrite=True)
         self.__assertActions(zfs,
-                             ['zfs snapshot srcPool1@zipper_1969-02-01T00:00:00_testBackupSet_full_backupPool1',
-                              'zfs send -P srcPool1@zipper_1969-02-01T00:00:00_testBackupSet_full_backupPool1 | zfs receive -F backupPool1/srcPool1@zipper_1969-02-01T00:00:00_testBackupSet_full_backupPool1',
-                              'zfs snapshot srcPool1/srcPool1Fs2@zipper_1969-02-01T00:00:02_testBackupSet_full_backupPool1',
-                              'zfs send -P srcPool1/srcPool1Fs2@zipper_1969-02-01T00:00:02_testBackupSet_full_backupPool1 | zfs receive -F backupPool1/srcPool1/srcPool1Fs2@zipper_1969-02-01T00:00:02_testBackupSet_full_backupPool1'])
+                             ['zfs snapshot srcPool1@zipper_1969-02-01T00:00:00_testBackupSet_full',
+                              'zfs send -P srcPool1@zipper_1969-02-01T00:00:00_testBackupSet_full | zfs receive -F backupPool1/srcPool1@zipper_1969-02-01T00:00:00_testBackupSet_full',
+                              'zfs snapshot srcPool1/srcPool1Fs2@zipper_1969-02-01T00:00:02_testBackupSet_full',
+                              'zfs send -P srcPool1/srcPool1Fs2@zipper_1969-02-01T00:00:02_testBackupSet_full | zfs receive -F backupPool1/srcPool1/srcPool1Fs2@zipper_1969-02-01T00:00:02_testBackupSet_full'])
         self.__assertRecorded(recorder,
-                              ['1969-02-01T00:00:01\tfull\tsrcPool1@zipper_1969-02-01T00:00:00_testBackupSet_full_backupPool1\t\tbackupPool1/srcPool1@zipper_1969-02-01T00:00:00_testBackupSet_full_backupPool1\t50000\t\t',
-                               '1969-02-01T00:00:03\tfull\tsrcPool1/srcPool1Fs2@zipper_1969-02-01T00:00:02_testBackupSet_full_backupPool1\t\tbackupPool1/srcPool1/srcPool1Fs2@zipper_1969-02-01T00:00:02_testBackupSet_full_backupPool1\t50000\t\t'])
+                              ['1969-02-01T00:00:01\tfull\tsrcPool1@zipper_1969-02-01T00:00:00_testBackupSet_full\t\tbackupPool1/srcPool1@zipper_1969-02-01T00:00:00_testBackupSet_full\t50000\t\t',
+                               '1969-02-01T00:00:03\tfull\tsrcPool1/srcPool1Fs2@zipper_1969-02-01T00:00:02_testBackupSet_full\t\tbackupPool1/srcPool1/srcPool1Fs2@zipper_1969-02-01T00:00:02_testBackupSet_full\t50000\t\t'])
         del recorder
 
     def testIncr1Pool2(self):
@@ -319,17 +319,17 @@ class BackuperTests(unittest.TestCase):
                                       self.backupPool1Fs2Snapshots[0:1],
                                       (), (),
                                       includeBackupFileSystems=False)
-        zfs.addSendRecvInfos(((("full", "srcPool1@zipper__testBackupSet_full_backupPool2", "50000"), ("size", "50000")),
-                              (("full", "srcPool1/srcPool1Fs2@zipper__testBackupSet_full_backupPool2", "50000"), ("size", "50000"))))
+        zfs.addSendRecvInfos(((("full", "srcPool1@zipper__testBackupSet_full", "50000"), ("size", "50000")),
+                              (("full", "srcPool1/srcPool1Fs2@zipper__testBackupSet_full", "50000"), ("size", "50000"))))
         recorder = TestBackupRecorder(self.id())
         self.__twoFsBackup(zfs, recorder, BackupType.incr, backupPool=self.backupPool2)
         self.__assertActions(zfs,
-                             ['zfs snapshot srcPool1@zipper_1932-02-01T00:00:00_testBackupSet_full_backupPool2',
-                              'zfs send -P srcPool1@zipper_1932-02-01T00:00:00_testBackupSet_full_backupPool2 | zfs receive backupPool2/srcPool1@zipper_1932-02-01T00:00:00_testBackupSet_full_backupPool2',
-                              'zfs snapshot srcPool1/srcPool1Fs2@zipper_1932-02-01T00:00:02_testBackupSet_full_backupPool2',
-                              'zfs send -P srcPool1/srcPool1Fs2@zipper_1932-02-01T00:00:02_testBackupSet_full_backupPool2 | zfs receive backupPool2/srcPool1/srcPool1Fs2@zipper_1932-02-01T00:00:02_testBackupSet_full_backupPool2'])
-        self.__assertRecorded(recorder, ['1932-02-01T00:00:01\tfull\tsrcPool1@zipper_1932-02-01T00:00:00_testBackupSet_full_backupPool2\t\tbackupPool2/srcPool1@zipper_1932-02-01T00:00:00_testBackupSet_full_backupPool2\t50000\t\t',
-                                         '1932-02-01T00:00:03\tfull\tsrcPool1/srcPool1Fs2@zipper_1932-02-01T00:00:02_testBackupSet_full_backupPool2\t\tbackupPool2/srcPool1/srcPool1Fs2@zipper_1932-02-01T00:00:02_testBackupSet_full_backupPool2\t50000\t\t'])
+                             ['zfs snapshot srcPool1@zipper_1932-02-01T00:00:00_testBackupSet_full',
+                              'zfs send -P srcPool1@zipper_1932-02-01T00:00:00_testBackupSet_full | zfs receive backupPool2/srcPool1@zipper_1932-02-01T00:00:00_testBackupSet_full',
+                              'zfs snapshot srcPool1/srcPool1Fs2@zipper_1932-02-01T00:00:02_testBackupSet_full',
+                              'zfs send -P srcPool1/srcPool1Fs2@zipper_1932-02-01T00:00:02_testBackupSet_full | zfs receive backupPool2/srcPool1/srcPool1Fs2@zipper_1932-02-01T00:00:02_testBackupSet_full'])
+        self.__assertRecorded(recorder, ['1932-02-01T00:00:01\tfull\tsrcPool1@zipper_1932-02-01T00:00:00_testBackupSet_full\t\tbackupPool2/srcPool1@zipper_1932-02-01T00:00:00_testBackupSet_full\t50000\t\t',
+                                         '1932-02-01T00:00:03\tfull\tsrcPool1/srcPool1Fs2@zipper_1932-02-01T00:00:02_testBackupSet_full\t\tbackupPool2/srcPool1/srcPool1Fs2@zipper_1932-02-01T00:00:02_testBackupSet_full\t50000\t\t'])
         del recorder
 
     def testIncr3Pool2(self):
@@ -340,28 +340,28 @@ class BackuperTests(unittest.TestCase):
                                       self.backupPool2Fs2Snapshots[0:1]+self.backupPool1Fs2Snapshots[0:3],
                                       self.backupPool2Fs1Snapshots[0:1],
                                       self.backupPool2Fs2Snapshots[0:1])
-        zfs.addSendRecvInfos(((("incremental", "zipper__testBackupSet_full_backupPool2", "zipper_2015-02-01T17:30:34_testBackupSet_incr", "50000"), ("size", "50000")),
+        zfs.addSendRecvInfos(((("incremental", "zipper__testBackupSet_full", "zipper_2015-02-01T17:30:34_testBackupSet_incr", "50000"), ("size", "50000")),
                               (("incremental", "zipper__testBackupSet_incr", "zipper__testBackupSet_incr", "50000"), ("size", "50000")),
                               (("incremental", "zipper__testBackupSet_incr", "srcPool1@zipper__testBackupSet_incr", "50000"), ("size", "50000")),
-                              (("incremental", "zipper__testBackupSet_full_backupPool2", "zipper__testBackupSet_incr", "50000"), ("size", "50000")),
+                              (("incremental", "zipper__testBackupSet_full", "zipper__testBackupSet_incr", "50000"), ("size", "50000")),
                               (("incremental", "zipper__testBackupSet_incr", "zipper__testBackupSet_incr", "50000"), ("size", "50000")),
                               (("incremental", "zipper__testBackupSet_incr", "srcPool1/srcPool1Fs2@zipper__testBackupSet_incr", "50000"), ("size", "50000"))))
         recorder = TestBackupRecorder(self.id())
         self.__twoFsBackup(zfs, recorder, BackupType.incr, backupPool=self.backupPool2)
         self.__assertActions(zfs,
-                             ['zfs send -P -i zipper_2015-01-01T17:30:34_testBackupSet_full_backupPool2 zipper_2015-02-01T17:30:34_testBackupSet_incr | zfs receive backupPool2/srcPool1@zipper_2015-02-01T17:30:34_testBackupSet_incr',
+                             ['zfs send -P -i zipper_2015-01-01T17:30:34_testBackupSet_full zipper_2015-02-01T17:30:34_testBackupSet_incr | zfs receive backupPool2/srcPool1@zipper_2015-02-01T17:30:34_testBackupSet_incr',
                               'zfs send -P -i zipper_2015-02-01T17:30:34_testBackupSet_incr zipper_2015-03-02T17:30:34_testBackupSet_incr | zfs receive backupPool2/srcPool1@zipper_2015-03-02T17:30:34_testBackupSet_incr',
                               'zfs snapshot srcPool1@zipper_2022-02-01T00:00:02_testBackupSet_incr',
                               'zfs send -P -i zipper_2015-03-02T17:30:34_testBackupSet_incr srcPool1@zipper_2022-02-01T00:00:02_testBackupSet_incr | zfs receive backupPool2/srcPool1@zipper_2022-02-01T00:00:02_testBackupSet_incr',
-                              'zfs send -P -i zipper_2015-01-01T17:30:34_testBackupSet_full_backupPool2 zipper_2015-02-01T17:30:34_testBackupSet_incr | zfs receive backupPool2/srcPool1/srcPool1Fs2@zipper_2015-02-01T17:30:34_testBackupSet_incr',
+                              'zfs send -P -i zipper_2015-01-01T17:30:34_testBackupSet_full zipper_2015-02-01T17:30:34_testBackupSet_incr | zfs receive backupPool2/srcPool1/srcPool1Fs2@zipper_2015-02-01T17:30:34_testBackupSet_incr',
                               'zfs send -P -i zipper_2015-02-01T17:30:34_testBackupSet_incr zipper_2015-03-02T17:30:34_testBackupSet_incr | zfs receive backupPool2/srcPool1/srcPool1Fs2@zipper_2015-03-02T17:30:34_testBackupSet_incr',
                               'zfs snapshot srcPool1/srcPool1Fs2@zipper_2022-02-01T00:00:06_testBackupSet_incr',
                               'zfs send -P -i zipper_2015-03-02T17:30:34_testBackupSet_incr srcPool1/srcPool1Fs2@zipper_2022-02-01T00:00:06_testBackupSet_incr | zfs receive backupPool2/srcPool1/srcPool1Fs2@zipper_2022-02-01T00:00:06_testBackupSet_incr'])
         self.__assertRecorded(recorder,
-                              ['2022-02-01T00:00:00\tincr\tzipper_2015-01-01T17:30:34_testBackupSet_full_backupPool2\tzipper_2015-02-01T17:30:34_testBackupSet_incr\tbackupPool2/srcPool1@zipper_2015-02-01T17:30:34_testBackupSet_incr\tsrcPool1/srcPool1Fs2@zipper__testBackupSet_incr\t\t',
+                              ['2022-02-01T00:00:00\tincr\tzipper_2015-01-01T17:30:34_testBackupSet_full\tzipper_2015-02-01T17:30:34_testBackupSet_incr\tbackupPool2/srcPool1@zipper_2015-02-01T17:30:34_testBackupSet_incr\tsrcPool1/srcPool1Fs2@zipper__testBackupSet_incr\t\t',
                                '2022-02-01T00:00:01\tincr\tzipper_2015-02-01T17:30:34_testBackupSet_incr\tzipper_2015-03-02T17:30:34_testBackupSet_incr\tbackupPool2/srcPool1@zipper_2015-03-02T17:30:34_testBackupSet_incr\tzipper__testBackupSet_incr\t\t',
                                '2022-02-01T00:00:03\tincr\tzipper_2015-03-02T17:30:34_testBackupSet_incr\tsrcPool1@zipper_2022-02-01T00:00:02_testBackupSet_incr\tbackupPool2/srcPool1@zipper_2022-02-01T00:00:02_testBackupSet_incr\tzipper__testBackupSet_incr\t\t',
-                               '2022-02-01T00:00:04\tincr\tzipper_2015-01-01T17:30:34_testBackupSet_full_backupPool2\tzipper_2015-02-01T17:30:34_testBackupSet_incr\tbackupPool2/srcPool1/srcPool1Fs2@zipper_2015-02-01T17:30:34_testBackupSet_incr\tsrcPool1@zipper__testBackupSet_incr\t\t',
+                               '2022-02-01T00:00:04\tincr\tzipper_2015-01-01T17:30:34_testBackupSet_full\tzipper_2015-02-01T17:30:34_testBackupSet_incr\tbackupPool2/srcPool1/srcPool1Fs2@zipper_2015-02-01T17:30:34_testBackupSet_incr\tsrcPool1@zipper__testBackupSet_incr\t\t',
                                '2022-02-01T00:00:05\tincr\tzipper_2015-02-01T17:30:34_testBackupSet_incr\tzipper_2015-03-02T17:30:34_testBackupSet_incr\tbackupPool2/srcPool1/srcPool1Fs2@zipper_2015-03-02T17:30:34_testBackupSet_incr\tzipper__testBackupSet_incr\t\t',
                                '2022-02-01T00:00:07\tincr\tzipper_2015-03-02T17:30:34_testBackupSet_incr\tsrcPool1/srcPool1Fs2@zipper_2022-02-01T00:00:06_testBackupSet_incr\tbackupPool2/srcPool1/srcPool1Fs2@zipper_2022-02-01T00:00:06_testBackupSet_incr\tzipper_2015-02-01T17:30:34_testBackupSet_incr\t\t'])
         del recorder
@@ -372,8 +372,8 @@ class BackuperTests(unittest.TestCase):
         zfs = self.__mkBackupPool2Zfs(self.backupPool1Fs1Snapshots[0:1],
                                       self.backupPool1Fs2Snapshots[0:1],
                                       (), ())
-        zfs.addSendRecvInfos(((("full", "srcPool1@zipper__testBackupSet_full_backupPool2", "50000"), ("size", "50000")),
-                              (("full", "srcPool1/srcPool1Fs2@zipper__testBackupSet_full_backupPool2", "50000"), ("size", "50000"))))
+        zfs.addSendRecvInfos(((("full", "srcPool1@zipper__testBackupSet_full", "50000"), ("size", "50000")),
+                              (("full", "srcPool1/srcPool1Fs2@zipper__testBackupSet_full", "50000"), ("size", "50000"))))
         recorder = TestBackupRecorder(self.id())
 
         with self.assertRaisesRegexp(BackupError, "^incremental backup of srcPool1 to backupPool2/srcPool1: no common full backup snapshot, backup pool backupPool2 already has the file system, must specify allowOverwrite to create a new full backup$"):
@@ -381,14 +381,14 @@ class BackuperTests(unittest.TestCase):
 
         self.__twoFsBackup(zfs, recorder, BackupType.incr, backupPool=self.backupPool2, allowOverwrite=True)
         self.__assertActions(zfs,
-                             ['zfs snapshot srcPool1@zipper_1977-02-01T00:00:01_testBackupSet_full_backupPool2',
-                              'zfs send -P srcPool1@zipper_1977-02-01T00:00:01_testBackupSet_full_backupPool2 | zfs receive -F backupPool2/srcPool1@zipper_1977-02-01T00:00:01_testBackupSet_full_backupPool2',
-                              'zfs snapshot srcPool1/srcPool1Fs2@zipper_1977-02-01T00:00:03_testBackupSet_full_backupPool2',
-                              'zfs send -P srcPool1/srcPool1Fs2@zipper_1977-02-01T00:00:03_testBackupSet_full_backupPool2 | zfs receive -F backupPool2/srcPool1/srcPool1Fs2@zipper_1977-02-01T00:00:03_testBackupSet_full_backupPool2'])
+                             ['zfs snapshot srcPool1@zipper_1977-02-01T00:00:01_testBackupSet_full',
+                              'zfs send -P srcPool1@zipper_1977-02-01T00:00:01_testBackupSet_full | zfs receive -F backupPool2/srcPool1@zipper_1977-02-01T00:00:01_testBackupSet_full',
+                              'zfs snapshot srcPool1/srcPool1Fs2@zipper_1977-02-01T00:00:03_testBackupSet_full',
+                              'zfs send -P srcPool1/srcPool1Fs2@zipper_1977-02-01T00:00:03_testBackupSet_full | zfs receive -F backupPool2/srcPool1/srcPool1Fs2@zipper_1977-02-01T00:00:03_testBackupSet_full'])
         self.__assertRecorded(recorder,
                             ['1977-02-01T00:00:00\terror\tsrcPool1\t\t\tBackupError\tincremental backup of srcPool1 to backupPool2/srcPool1: no common full backup snapshot, backup pool backupPool2 already has the file system, must specify allowOverwrite to create a new full backup\t',
-                             '1977-02-01T00:00:02\tfull\tsrcPool1@zipper_1977-02-01T00:00:01_testBackupSet_full_backupPool2\t\tbackupPool2/srcPool1@zipper_1977-02-01T00:00:01_testBackupSet_full_backupPool2\t50000\t\t',
-                             '1977-02-01T00:00:04\tfull\tsrcPool1/srcPool1Fs2@zipper_1977-02-01T00:00:03_testBackupSet_full_backupPool2\t\tbackupPool2/srcPool1/srcPool1Fs2@zipper_1977-02-01T00:00:03_testBackupSet_full_backupPool2\t50000\t\t'])
+                             '1977-02-01T00:00:02\tfull\tsrcPool1@zipper_1977-02-01T00:00:01_testBackupSet_full\t\tbackupPool2/srcPool1@zipper_1977-02-01T00:00:01_testBackupSet_full\t50000\t\t',
+                             '1977-02-01T00:00:04\tfull\tsrcPool1/srcPool1Fs2@zipper_1977-02-01T00:00:03_testBackupSet_full\t\tbackupPool2/srcPool1/srcPool1Fs2@zipper_1977-02-01T00:00:03_testBackupSet_full\t50000\t\t'])
         del recorder
 
     def testBackupSetToPool1Full(self):
@@ -398,18 +398,18 @@ class BackuperTests(unittest.TestCase):
                    ((self.backupPool1, ())),
                    (self.backupPool2Off, ()))
         zfs = ZfsMock(zfsConf)
-        zfs.addSendRecvInfos(((("full", "srcPool1@zipper__testBackupSet_full_backupPool1", "50000"), ("size", "50000")),
-                              (("full", "srcPool1/srcPool1Fs2@zipper__testBackupSet_full_backupPool1", "50000"), ("size", "50000"))))
+        zfs.addSendRecvInfos(((("full", "srcPool1@zipper__testBackupSet_full", "50000"), ("size", "50000")),
+                              (("full", "srcPool1/srcPool1Fs2@zipper__testBackupSet_full", "50000"), ("size", "50000"))))
         recorder = TestBackupRecorder(self.id())
         bsb = BackupSetBackup(zfs, recorder, self.backupConf1, allowOverwrite=False)
         bsb.backupAll(BackupType.full)
-        self.__assertActions(zfs,['zfs snapshot srcPool1@zipper_1982-02-01T00:00:00_testBackupSet_full_backupPool1',
-                                  'zfs send -P srcPool1@zipper_1982-02-01T00:00:00_testBackupSet_full_backupPool1 | zfs receive backupPool1/srcPool1@zipper_1982-02-01T00:00:00_testBackupSet_full_backupPool1',
-                                  'zfs snapshot srcPool1/srcPool1Fs2@zipper_1982-02-01T00:00:02_testBackupSet_full_backupPool1',
-                                  'zfs send -P srcPool1/srcPool1Fs2@zipper_1982-02-01T00:00:02_testBackupSet_full_backupPool1 | zfs receive backupPool1/srcPool1/srcPool1Fs2@zipper_1982-02-01T00:00:02_testBackupSet_full_backupPool1'])
+        self.__assertActions(zfs,['zfs snapshot srcPool1@zipper_1982-02-01T00:00:00_testBackupSet_full',
+                                  'zfs send -P srcPool1@zipper_1982-02-01T00:00:00_testBackupSet_full | zfs receive backupPool1/srcPool1@zipper_1982-02-01T00:00:00_testBackupSet_full',
+                                  'zfs snapshot srcPool1/srcPool1Fs2@zipper_1982-02-01T00:00:02_testBackupSet_full',
+                                  'zfs send -P srcPool1/srcPool1Fs2@zipper_1982-02-01T00:00:02_testBackupSet_full | zfs receive backupPool1/srcPool1/srcPool1Fs2@zipper_1982-02-01T00:00:02_testBackupSet_full'])
         self.__assertRecorded(recorder,
-                              ['1982-02-01T00:00:01\tfull\tsrcPool1@zipper_1982-02-01T00:00:00_testBackupSet_full_backupPool1\t\tbackupPool1/srcPool1@zipper_1982-02-01T00:00:00_testBackupSet_full_backupPool1\t50000\t\t',
-                               '1982-02-01T00:00:03\tfull\tsrcPool1/srcPool1Fs2@zipper_1982-02-01T00:00:02_testBackupSet_full_backupPool1\t\tbackupPool1/srcPool1/srcPool1Fs2@zipper_1982-02-01T00:00:02_testBackupSet_full_backupPool1\t50000\t\t'])
+                              ['1982-02-01T00:00:01\tfull\tsrcPool1@zipper_1982-02-01T00:00:00_testBackupSet_full\t\tbackupPool1/srcPool1@zipper_1982-02-01T00:00:00_testBackupSet_full\t50000\t\t',
+                               '1982-02-01T00:00:03\tfull\tsrcPool1/srcPool1Fs2@zipper_1982-02-01T00:00:02_testBackupSet_full\t\tbackupPool1/srcPool1/srcPool1Fs2@zipper_1982-02-01T00:00:02_testBackupSet_full\t50000\t\t'])
         del recorder
 
 def suite():

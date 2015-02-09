@@ -58,11 +58,16 @@ class Zfs(object):
     
     def sendRecvIncr(self, sourceBaseSnapshotName, sourceSnapshotName, backupSnapshotName):
         "return results of send -P parsed into rows of columns"
+        # receive -F is require to prevent "destination X has been modified" error
         sendCmd = ["zfs", "send", "-P", "-i", sourceBaseSnapshotName, sourceSnapshotName]
-        recvCmd = ["zfs", "receive", backupSnapshotName]
+        recvCmd = ["zfs", "receive", "-F", backupSnapshotName]
         stderr1, ignored = self.cmdRunner.pipeline2(sendCmd, recvCmd)
         return splitTabLinesToRows(stderr1)
 
+    def setProp(self, fileSystemName, name, value):
+        "set a property"
+        self.cmdRunner.run(["zfs", "set", name+"="+str(value), fileSystemName])
+    
 ZfsPoolHealth = Enum("ZfsPoolHealth", ("ONLINE", "DEGRADED", "FAULTED", "OFFLINE", "REMOVED", "UNAVAIL"))
 def getZfsPoolHealth(strVal):
     return getattr(ZfsPoolHealth, strVal)
