@@ -32,24 +32,34 @@ class BackupRecorder(object):
 
     header = ("time", "action", "src1Snap", "src2Snap", "backupSnap", "size", "exception", "info")
 
-    def __init__(self, recordTsvFile):
-        "if recordTsvFile is None, not record is made"
+    def __init__(self, recordTsvFile, outFh=None):
+        "if recordTsvFile or outFh can be  None made"
         self.recordTsvFh = None
+        self.outFh = outFh
         if recordTsvFile != None:
             self.recordTsvFh = open(recordTsvFile, "a", buffering=1)  # line buffered
-            if self.recordTsvFh.tell() == 0:
-                self.recordTsvFh.write("\t".join(self.header) + "\n")
+        self.__writeHeader()
+
+    def __writeHeader(self):
+        headerLine = "\t".join(self.header) + "\n"
+        if (self.recordTsvFh != None) and (self.recordTsvFh.tell() == 0):
+            self.recordTsvFh.write(headerLine)  # file is empty, write header
+        if self.outFh != None:
+            self.outFh.write(headerLine)
 
     def record(self, action, src1Snap=None, src2Snap=None, backupSnap=None, size=None, exception=None, info=None):
+        rec = (currentGmtTimeStrFunc(), action, asStrOrEmpty(src1Snap), asStrOrEmpty(src2Snap), asStrOrEmpty(backupSnap), asStrOrEmpty(size), asStrOrEmpty(exception), asStrOrEmpty(info))
+        line = "\t".join(rec) + "\n"
         if self.recordTsvFh != None:
-            rec = (currentGmtTimeStrFunc(), action, asStrOrEmpty(src1Snap), asStrOrEmpty(src2Snap), asStrOrEmpty(backupSnap), asStrOrEmpty(size), asStrOrEmpty(exception), asStrOrEmpty(info))
-            self.recordTsvFh.write("\t".join(rec) + "\n")
+            self.recordTsvFh.write(line)
+        if self.outFh != None:
+            self.outFh.write(line)
+            self.outFh.flush()
 
     def error(self, exception, src1Snap=None, src2Snap=None, backupSnap=None):
-        if self.recordTsvFh != None:
-            # make sure there are no newlines or tabs
-            msg = re.sub("\\s", " ", str(exception))
-            self.record("error", src1Snap, src2Snap, backupSnap, type(exception).__name__, msg)
+        # make sure there are no newlines or tabs
+        msg = re.sub("\\s", " ", str(exception))
+        self.record("error", src1Snap, src2Snap, backupSnap, type(exception).__name__, msg)
 
     def getFileName(self):
         if self.recordTsvFh != None:
@@ -280,7 +290,7 @@ class FsBackup(object):
             return True # force full
 
     def backup(self, recorder, backupType):
-        logger.info("backup: %s  backupSet %s  %s -> %s overwrite:%s" %
+        logger.info("backup: %s  backupSet %s  %s -> %s overwrite: %s" %
                     (backupType, self.backupSetConf.name, self.sourceFileSystem.name, self.backupFileSystemName, str(self.allowOverwrite)))
         try:
             # do a full if requested or if there are no full on the backup

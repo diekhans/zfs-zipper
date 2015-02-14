@@ -3,7 +3,7 @@ Test of zfs-zipper tests of library functions.
 """
 
 import sys, unittest, tempfile
-sys.path.insert(0, "..")
+sys.path.insert(0, "../lib/zfs-zipper")
 from zfszipper import backup
 from zfszipper.backup import BackupSnapshot, BackupType, FsBackup, BackupError,  BackupSetBackup, BackupRecorder
 from zfszipper.zfs import ZfsPool, ZfsFileSystem, ZfsSnapshot, ZfsPoolHealth

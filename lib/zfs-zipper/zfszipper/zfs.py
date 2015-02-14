@@ -44,7 +44,7 @@ class Zfs(object):
         return ZfsPool(results[0][0], getZfsPoolHealth(results[0][1]))
 
     def createSnapshot(self, snapshotName):
-        self.cmdRunner.run(["zfs", "snapshot", snapshotName])
+        self.cmdRunner.call(["zfs", "snapshot", snapshotName])
     
     def sendRecvFull(self, sourceSnapshotName, backupSnapshotName, allowOverwrite=False):
         "return results of send -P parsed into rows of columns"
@@ -66,7 +66,7 @@ class Zfs(object):
 
     def setProp(self, fileSystemName, name, value):
         "set a property"
-        self.cmdRunner.run(["zfs", "set", name+"="+str(value), fileSystemName])
+        self.cmdRunner.call(["zfs", "set", name+"="+str(value), fileSystemName])
     
 ZfsPoolHealth = Enum("ZfsPoolHealth", ("ONLINE", "DEGRADED", "FAULTED", "OFFLINE", "REMOVED", "UNAVAIL"))
 def getZfsPoolHealth(strVal):
@@ -81,6 +81,9 @@ class ZfsFileSystem(object):
         self.mountpoint = mountpoint if (mountpoint == None) or len(mountpoint) > 0 else None
         self.mounted = self.__parseMounted(mounted)
 
+    def __str__(self):
+        return "name="+self.name + " mountpoint="+ str(self.mountpoint) + " mounted="+ str(self.mounted)
+        
     @staticmethod
     def __parseMounted(mounted):
         if isinstance(mounted, bool):

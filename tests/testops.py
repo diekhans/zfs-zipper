@@ -4,6 +4,7 @@ common functions used by various tests.
 import os, sys, subprocess, errno
 from glob import glob
 from collections import namedtuple
+from zfszipper.cmdrunner import ProcessError
 
 def ensureDir(dir):
     """Ensure that a directory exists, creating it (and parents) if needed."""
@@ -29,17 +30,20 @@ def deleteFiles(globPat):
 
 def runCmd(cmd):
     sys.stderr.write("run: " + " ".join(cmd) + "\n")
-    return subprocess.check_output(cmd).splitlines()
+    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout, stderr = process.communicate()
+    if process.returncode != 0:
+        raise ProcessError(process.returncode, cmd, stderr)
+    return stdout.splitlines()
 
 def runCmdTabSplit(cmd):
-    sys.stderr.write("run: " + " ".join(cmd) + "\n")
-    return [l.split("\t") for l in subprocess.check_output(cmd).splitlines()]
+    return [l.split("\t") for l in runCmd(cmd)]
 
 CmdResults = namedtuple("CmdResults", ("returncode", "stdout", "stderr"))
 def callCmdAllResults(cmd):
     "return CmdResults object"
+    sys.stderr.write("run: " + " ".join(cmd) + "\n")
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    out = p.communicate()
-    p.wait()
-    return CmdResults(p.returncode, out[0], out[1])
+    stdout, stderr = p.communicate()
+    return CmdResults(p.returncode, stdout, stderr)
 

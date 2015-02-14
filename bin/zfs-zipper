@@ -20,6 +20,7 @@ FS and the BackupPool FS.
 """
 
 import os, sys, re, subprocess, time, argparse, fcntl, logging
+sys.path.insert(0, os.path.normpath(os.path.dirname(sys.argv[0])) + "/../lib/zfs-zipper")
 from zfszipper.zfs import Zfs
 from zfszipper.backup import BackupSetBackup, BackupType, BackupRecorder, BackupError
 from zfszipper.config import BackupConf
@@ -106,25 +107,26 @@ class Backup(object):
 
     def runBackups(self):
         self.__obtainLock()
-        recorder = BackupRecorder(self.config.recordFile)
+        recorder = BackupRecorder(self.config.recordFile, sys.stdout)
         if self.backupSetName != None:
             self.__backupOneSet(recorder, self.config.getBackupSet(config.backupSetName), self.sourceFileSystemNames)
         else:
             self.__backupAllSets(recorder)
 
 args = parseCommand()
-if (args.config.syslogFacility == None) or (args.verboseLevel != None):
-    level = args.verboseLevel if args.verboseLevel != None else loggingops.parseLevel("error")
-    loggingops.setupStderrLogger(level)
+if args.verboseLevel != None:
+    loggingops.setupStderrLogger(args.verboseLevel)
 if args.config.syslogFacility != None:
     loggingops.setupSyslogLogger(args.config.syslogFacility, args.config.syslogLevel, programName=os.path.basename(sys.argv[0]))
+if (args.verboseLevel == None) and (args.config.syslogFacility == None):
+    loggingops.setupNullLogger()
     
 backup = Backup(args)
 try:
     backup.runBackups()
 except Exception, ex:
     logger.exception("zfs-zipper backup of failed")
-    sys.stderr.write("error: " + str(ex) + " (specify --verboseLevel=error for more details\n")
+    sys.stderr.write("error: " + str(ex) + " (specify --verboseLevel=error for more details)\n")
     sys.exit(1)
 
 logger.info("zfs-zipper backup of complete")

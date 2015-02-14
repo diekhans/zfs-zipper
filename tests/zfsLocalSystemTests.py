@@ -4,7 +4,7 @@ ZFS file systems and snapshot.  This may not run everywhere
 """
 
 import sys,  unittest
-sys.path.insert(0, "..")
+sys.path.insert(0, "../lib/zfs-zipper")
 from zfszipper import zfs
 
 debug = False
@@ -20,7 +20,7 @@ class ZfsLocalSystemTest(unittest.TestCase):
 
     def __zfsLoadFileSystem(self, zfs, fileSystem):
         descs = []
-        descs.append("  filesystem: " + " ".join([str(v) for v in fileSystem]))
+        descs.append("  filesystem: " + str(fileSystem))
         for snapshot in zfs.listSnapshots(fileSystem.name):
             descs.append("    snapshot: " + " ".join(snapshot))
         return descs

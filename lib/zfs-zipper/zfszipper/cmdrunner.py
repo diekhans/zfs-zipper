@@ -6,6 +6,19 @@ import subprocess, tempfile
 import logging
 logger = logging.getLogger()
 
+class ProcessError(Exception):
+    "unlike subprocess, this includes stderr"
+    def __init__(self, returncode, cmd, stderr, stdout=None):
+        self.returncode = returncode
+        self.cmd = tuple(cmd)
+        self.stderr = stderr
+        self.stdout = stdout
+        msg = " ".join(self.cmd) + " exited " + str(self.returncode)
+        if self.stderr != None:
+            msg += ": " + self.stderr
+        Exception.__init__(self, msg)
+
+
 class Pipeline2Exception(Exception):
     def __init__(self, except1, except2):
         "either can be null"
@@ -26,7 +39,8 @@ class AsyncProc(object):
         try:
             code = self.proc.wait()
             if code != 0:
-                raise subprocess.CalledProcessError(code, self.cmd, self.stderrFh.read())
+                self.stderrFh.seek(0)
+                raise ProcessError(code, self.cmd, self.stderrFh.read())
             self.stderrFh.seek(0)
             return (self.stderrFh.read(), None)
         except Exception, ex:
@@ -37,25 +51,23 @@ class AsyncProc(object):
         finally:
             self.stderrFh.close()
         
-        
 class CmdRunner(object):
     def __logCmd(self, cmd):
-        logger.debug("run: " + " ".join(cmd) + "\n")
+        logger.debug("run: " + " ".join(cmd))
 
-    def run(self, cmd):
-        "execute command, not output returned"
-        self.__logCmd(cmd)
-        try:
-            subprocess.check_call(cmd)
-        except Exception, ex:
-            logger.exception("command failed:" + " " .join(cmd))
-            raise
+    def __run(self, cmd):
+        # check_output doesn't return stderr in message
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout, stderr = process.communicate()
+        if process.returncode != 0:
+            raise ProcessError(process.returncode, cmd, stderr)
+        return stdout
 
     def call(self, cmd):
         "return list of output lines"
         self.__logCmd(cmd)
         try:
-            lines = subprocess.check_output(cmd).splitlines()
+            lines = self.__run(cmd).splitlines()
         except Exception, ex:
             logger.exception("command failed:" + " " .join(cmd))
             raise

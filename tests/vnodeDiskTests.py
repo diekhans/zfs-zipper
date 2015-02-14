@@ -2,6 +2,7 @@
 Tests that run on FreeBSD with ZFS in vnode file systems.  Must run as root, sadly.
 """
 import os, sys, argparse, subprocess
+sys.path.insert(0, os.path.normpath(os.path.dirname(sys.argv[0])) + "/../lib/zfs-zipper")
 from collections import namedtuple
 from testops import *
 from vnodeZfs import *
@@ -70,7 +71,7 @@ config = BackupConf([backupSetConf], lockFile="%(testLockFile)s", recordFilePatt
         if allowOverwrite:
             cmd.append("--allowOverwrite")
         if self.zipperLogLevel != None:
-            cmd.append("--stderrLogLevel="+self.zipperLogLevel)    
+            cmd.append("--verboseLevel="+self.zipperLogLevel)    
         runCmd(cmd)
 
     @staticmethod
@@ -95,12 +96,16 @@ config = BackupConf([backupSetConf], lockFile="%(testLockFile)s", recordFilePatt
         self.__runZfsZipper(configPy, full=False, allowOverwrite=False)
 
     def __test1FullOverwriteFail(self, sourcePool, backupPool, configPy):
+        ok = False
         try:
             self.__runZfsZipper(configPy, full=True, allowOverwrite=False)
-        except subprocess.CalledProcessError, ex:
+            ok = True
+        except Exception, ex:
             expectMsg = "zfszipper_test_source to zfszipper_test_backup/zfszipper_test_source: full backup snapshots exists and overwrite not specified"
-            if ex.message != expectMsg:
-                raise Exception("expected error with message \"%s\", got \"%s\"" %s expectMsg)
+            if ex.message.find(expectMsg) < 0:
+                raise Exception("expected error with message containing \"%s\", got \"%s\"" % (expectMsg, str(ex)))
+        if ok:
+            raise Exception("Excepted failure, didn't get exception")
         
     def runTest1(self):
         sourcePool, backupPool = self.__testInit()
@@ -111,15 +116,15 @@ config = BackupConf([backupSetConf], lockFile="%(testLockFile)s", recordFilePatt
         self.__test1FullOverwriteFail(sourcePool, backupPool, configPy)
 
 def parseCommand():
-    usage="""%prog [options] test|cleanup
+    usage="""%prog [options] test|clean
     runs tests or do a cleanup
     """
     parser = argparse.ArgumentParser(description=usage)
     parser.add_argument("action",
-                        help="""test to run tests, or cleanup to cleanup failed tests""")
+                        help="""test to run tests, or clean to cleanup failed tests""")
     args = parser.parse_args()
-    if args.action not in ("test", "cleanup"):
-        parser.error("expected on of test or cleanup, got %s"% args.action)
+    if args.action not in ("test", "clean"):
+        parser.error("expected on of test or clean, got %s"% args.action)
     if os.geteuid() != 0:
         parser.error("must be run as root")
     return args
