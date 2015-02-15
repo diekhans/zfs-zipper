@@ -64,14 +64,18 @@ config = BackupConf([backupSetConf], lockFile="%(testLockFile)s", recordFilePatt
         for relFileName in relFileNames:
             self.__writeFile(mountPoint+"/"+relFileName, contentFunction(relFileName))
 
-    def __runZfsZipper(self, configPy, full, allowOverwrite=False):
-        cmd = ["../bin/zfs-zipper", configPy]
+    def __runZfsZipper(self, configPy, full, allowOverwrite=False, backupSet=None, sourceFileSystems=None):
+        cmd = ["../sbin/zfs-zipper", configPy]
         if full:
             cmd.append("--full")
         if allowOverwrite:
             cmd.append("--allowOverwrite")
+        if backupSet != None:
+            cmd.append("--backupSet="+backupSet)
+        if sourceFileSystems != None:
+            cmd.extend(["--sourceFileSystem="+fs for fs in sourceFileSystems])
         if self.zipperLogLevel != None:
-            cmd.append("--verboseLevel="+self.zipperLogLevel)    
+            cmd.append("--verboseLevel="+self.zipperLogLevel)
         runCmd(cmd)
 
     @staticmethod
@@ -93,7 +97,8 @@ config = BackupConf([backupSetConf], lockFile="%(testLockFile)s", recordFilePatt
         self.__writeTestFiles(sourcePool, self.testSourceFs2, self.testSourceFs2Files[2:2], self.__upcaseFunc)
         self.__writeTestFiles(sourcePool, self.testSourceFs1, self.testSourceFs1Files2)
         self.__writeTestFiles(sourcePool, self.testSourceFs2, self.testSourceFs2Files2)
-        self.__runZfsZipper(configPy, full=False, allowOverwrite=False)
+        # try restriction arguments
+        self.__runZfsZipper(configPy, full=False, allowOverwrite=False, backupSet=self.testBackupSetName, sourceFileSystems=[self.testSourceFs1, self.testSourceFs2])
 
     def __test1FullOverwriteFail(self, sourcePool, backupPool, configPy):
         ok = False

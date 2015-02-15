@@ -11,7 +11,7 @@ class BackupConfigError(Exception):
 class SourceFileSystemConf(object):
     "a file system to backup, full ZFS file system name"
     def __init__(self, name):
-        self.name = name
+        self.name = os.path.normpath(name)
 
 class BackupPoolConf(object):
     "Configuration of a backup pool"
@@ -27,16 +27,27 @@ class BackupSetConf(object):
     and a set of rotating backup pools use to backup those file systems.
     """
     def __init__(self, name, sourceFileSystemSpecs, backupPoolConfs):
-        "sourceFileSystemSpecs can be ZFS file system names of SourceFileSystemConf objects"
+        "sourceFileSystemSpecs can be ZFS file system names or SourceFileSystemConf objects"
         if name.find('_') >= 0:  # used as a separator in snapshot names
             raise BackupConfigError("backup set name may not contain `_': " + name)
         self.name = name
-        self.sourceFileSystemConfs = tuple([self.__mkSourceFileSystemConf(fsSpec) for fsSpec in sourceFileSystemSpecs])
+        self.sourceFileSystemConfs = self.__buildSourceFileSystemConfs(sourceFileSystemSpecs)
         self.backupPoolConfs = tuple(backupPoolConfs)
         self.byBackupPoolName = OrderedDict()
         for backupPoolConf in self.backupPoolConfs:
             self.__addBackupPoolConf(backupPoolConf)
 
+    def __buildSourceFileSystemConfs(self, sourceFileSystemSpecs):
+        seen = set()
+        confs = []
+        for fsSpec in sourceFileSystemSpecs:
+            fs = self.__mkSourceFileSystemConf(fsSpec)  # name will be normalized, need before seen check
+            if fs.name in seen:
+                raise BackupConfigError("duplicate file system in BackupSetConf: " + fs.name)
+            seen.add(fs.name)
+            confs.append(fs)
+        return tuple(confs)
+        
     def __mkSourceFileSystemConf(self, fsSpec):
         if isinstance(fsSpec, str):
             return SourceFileSystemConf(fsSpec)
@@ -57,6 +68,9 @@ class BackupSetConf(object):
         if backupPoolName == None:
             raise BackupConfigError("backup pool %s not part of backup set %s" % (backupPoolName, self.name))
         return backupPoolConf
+
+    def getSourceFileSystem(self, sourceFileSystemName):
+        "find source file system"
     
 class BackupConf(object):
     "Configuration of backups"

@@ -30,13 +30,15 @@ class BackupType(Enum):
 class BackupRecorder(object):
     "record history of backups in a file"
 
-    header = ("time", "action", "src1Snap", "src2Snap", "backupSnap", "size", "exception", "info")
+    header = ("time", "backupSet", "backupPool", "action", "src1Snap", "src2Snap", "backupSnap", "size", "exception", "info")
 
     def __init__(self, recordTsvFile, outFh=None):
         "if recordTsvFile or outFh can be  None made"
         self.recordTsvFh = None
         self.outFh = outFh
         if recordTsvFile != None:
+            if not os.path.exists(os.path.dirname(recordTsvFile)):
+                os.makedirs(os.path.dirname(recordTsvFile))
             self.recordTsvFh = open(recordTsvFile, "a", buffering=1)  # line buffered
         self.__writeHeader()
 
@@ -47,8 +49,8 @@ class BackupRecorder(object):
         if self.outFh != None:
             self.outFh.write(headerLine)
 
-    def record(self, action, src1Snap=None, src2Snap=None, backupSnap=None, size=None, exception=None, info=None):
-        rec = (currentGmtTimeStrFunc(), action, asStrOrEmpty(src1Snap), asStrOrEmpty(src2Snap), asStrOrEmpty(backupSnap), asStrOrEmpty(size), asStrOrEmpty(exception), asStrOrEmpty(info))
+    def record(self, backupSet, backupPool, action, src1Snap=None, src2Snap=None, backupSnap=None, size=None, exception=None, info=None):
+        rec = (currentGmtTimeStrFunc(), asNameStrOrNone(backupSet), asNameStrOrNone(backupPool), action, asStrOrEmpty(src1Snap), asStrOrEmpty(src2Snap), asStrOrEmpty(backupSnap), asStrOrEmpty(size), asStrOrEmpty(exception), asStrOrEmpty(info))
         line = "\t".join(rec) + "\n"
         if self.recordTsvFh != None:
             self.recordTsvFh.write(line)
@@ -56,10 +58,10 @@ class BackupRecorder(object):
             self.outFh.write(line)
             self.outFh.flush()
 
-    def error(self, exception, src1Snap=None, src2Snap=None, backupSnap=None):
+    def error(self, backupSet, backupPool, exception, src1Snap=None, src2Snap=None, backupSnap=None):
         # make sure there are no newlines or tabs
         msg = re.sub("\\s", " ", str(exception))
-        self.record("error", src1Snap, src2Snap, backupSnap, type(exception).__name__, msg)
+        self.record(backupSet, backupPool, "error", src1Snap, src2Snap, backupSnap, type(exception).__name__, msg)
 
     def getFileName(self):
         if self.recordTsvFh != None:
@@ -220,7 +222,7 @@ class FsBackup(object):
             raise BackupError("expected 3 columns in ZFS send|receive full record, got: " + str(info0))
         if info0[0] != "full":
             raise BackupError("expected 'full' in column 0 of ZFS send|receive full record, got: " + str(info0))
-        recorder.record("full", sourceSnapshot.getFileSystemSnapshotName(), None, backupSnapshot.getFileSystemSnapshotName(), info0[2])
+        recorder.record(self.backupSetConf, self.backupPool, "full", sourceSnapshot.getFileSystemSnapshotName(), None, backupSnapshot.getFileSystemSnapshotName(), info0[2])
         
     def __backupFull(self, recorder):
         if (len(self.backupSnapshots) > 0) and not self.allowOverwrite:
@@ -255,7 +257,7 @@ class FsBackup(object):
             raise BackupError("expected 4 columns in ZFS send|receive incremental record, got: " + str(info0))
         if info0[0] != "incremental":
             raise BackupError("expected 'incremental' in column 0 of ZFS send|receive incremental record, got: " + str(info0))
-        recorder.record("incr", prevSourceSnapshot.getFileSystemSnapshotName(), sourceSnapshot.getFileSystemSnapshotName(), backupSnapshot.getFileSystemSnapshotName(), info0[2])
+        recorder.record(self.backupSetConf, self.backupPool, "incr", prevSourceSnapshot.getFileSystemSnapshotName(), sourceSnapshot.getFileSystemSnapshotName(), backupSnapshot.getFileSystemSnapshotName(), info0[2])
         
     def __makeIncrBackup(self, recorder, prevSourceSnapshot, sourceSnapshot):
         backupSnapshot = BackupSnapshot.createFromSnapshot(sourceSnapshot, self.backupFileSystem)
@@ -300,7 +302,7 @@ class FsBackup(object):
                 self.__backupIncr(recorder)
         except Exception, ex:
             logger.exception("backup of %s to %s failed" % (self.backupSetConf.name, self.sourceFileSystem.name))
-            recorder.error(ex, self.sourceFileSystem.name)
+            recorder.error(self.backupSetConf, self.backupPool, ex, self.sourceFileSystem.name)
             raise
 
 class BackupSetBackup(object):
@@ -346,7 +348,7 @@ class BackupSetBackup(object):
                                 self.__getSourceFileSystem(sourceFileSystemConf),
                                 self.backupPool, self.allowOverwrite)
         except Exception, ex:
-            self.recorder.error(ex)
+            self.recorder.error(self.backupSetConf, self.backupPool, ex)
             raise
         fsBackup.backup(self.recorder, backupType)
 

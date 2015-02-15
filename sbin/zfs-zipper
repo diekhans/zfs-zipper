@@ -64,7 +64,7 @@ def parseCommand():
     return args
 
 def checkBackupSubsetArgs(args):
-    if (args.sourceFileSystemNames != None) and (args.backUpSet == None):
+    if (args.sourceFileSystemNames != None) and (args.backupSetName == None):
         parser.error("must specify --backUpSet with --sourceFileSystemName")
     if args.backupSetName != None:
         backupSetConf = args.config.getBackupSet(args.backupSetName) # error if not found
@@ -97,7 +97,7 @@ class Backup(object):
     def __backupOneSet(self, recorder, backupSetConf, sourcePoolName=None, sourceFileSystemNames=None):
         backupper = BackupSetBackup(self.zfs, recorder, backupSetConf, self.allowOverwrite)
         if sourceFileSystemNames != None:
-            self.__backupSomeFileSystems(backupper, backuSetConf, sourceFileSystems)
+            self.__backupSomeFileSystems(backupper, backupSetConf, sourceFileSystems)
         else:
             backupper.backupAll(self.backupType)
             
@@ -109,7 +109,7 @@ class Backup(object):
         self.__obtainLock()
         recorder = BackupRecorder(self.config.recordFile, sys.stdout)
         if self.backupSetName != None:
-            self.__backupOneSet(recorder, self.config.getBackupSet(config.backupSetName), self.sourceFileSystemNames)
+            self.__backupOneSet(recorder, self.config.getBackupSet(self.backupSetName), self.sourceFileSystemNames)
         else:
             self.__backupAllSets(recorder)
 
