@@ -5,18 +5,22 @@ libPyRelFiles = ${libPyBaseFiles:%=zfs-zipper/zfszipper/%}
 libPycRelFiles = ${libPyRelFiles:%=%c}
 libPycSrcFiles = ${libPycRelFiles:%=lib/%}
 sbinProgs = zfs-zipper
-etcFiles = osprey.zfs-zipper.py
+etcFiles = zfs-zipper.conf.py
+periodicFiles=daily/100.zfs-zipper
 
 prefix=/opt
 libDir = ${prefix}/lib
 sbinDir = ${prefix}/sbin
 etcDir = ${prefix}/etc
+periodicDir = /usr/local/etc/periodic
 
-installFiles = ${libPyRelFiles:%=${libDir}/%} ${libPycRelFiles:%=${libDir}/%} ${sbinProgs:%=${sbinDir}/%} ${etcFiles:%=${etcDir}/%}
+installedFiles = ${libPyRelFiles:%=${libDir}/%} ${libPycRelFiles:%=${libDir}/%} ${sbinProgs:%=${sbinDir}/%} ${etcFiles:%=${etcDir}/%} ${periodicFiles:%=${periodicDir}/%}
+
+uninstallDirs = ${libDir}/zfs-zipper/zfszipper ${libDir}/zfs-zipper
 
 all: ${libPycSrcFiles}
 
-install: ${installFiles}
+install: ${installedFiles}
 
 ${libDir}/%.py: lib/%.py
 	@mkdir -p $(dir $@)
@@ -31,13 +35,21 @@ ${libDir}/%.pyc: lib/%.pyc ${libDir}/%.py
 
 ${sbinDir}/%: sbin/%
 	@mkdir -p $(dir $@)
-	cp -f $< $@
-	chmod a+rx,a-w $@
+	rm -f $@.tmp
+	echo "#!"`which ${PYTHON}` >$@.tmp
+	cat $< >>$@.tmp
+	chmod a+rx,a-w $@.tmp
+	mv -f $@.tmp $@
 
-${etcDir}/%: etc/%
+${etcDir}/zfs-zipper.conf.py: etc/osprey.zfs-zipper.conf.py
 	@mkdir -p $(dir $@)
 	cp -f $< $@
 	chmod a+r,a-wx $@
+
+${periodicDir}/%: etc/periodic/%
+	@mkdir -p $(dir $@)
+	cp -f $< $@
+	chmod a+rx,a-w $@
 
 
 %.pyc: %.py
@@ -45,3 +57,7 @@ ${etcDir}/%: etc/%
 
 clean:
 	rm -f ${libPycSrcFiles}
+
+uninstall:
+	rm -f ${installedFiles}
+	rmdir ${uninstallDirs}

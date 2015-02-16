@@ -1,0 +1,26 @@
+#!/bin/sh
+#
+# EDIT FILE IN SOURCE TREE
+#
+# ZFS Zipper runs.  This is run by periodic but starts a separate process with separate
+# e-mail reporting
+#
+
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
+fi
+
+case "$daily_zfs_zipper_enable" in
+    [Yy][Ee][Ss])
+	echo ""
+	echo "ZFS Zipper backup: results will be mailed from separate process"
+        rc=1
+        ((/opt/sbin/zfs-zipper /opt/etc/zfs-zipper.conf.py 2>&1 | mail -s "ZFS Zipper daily backup: $(hostname)" root)</dev/null &) || rc=3;;
+    *)  rc=0;;
+esac
+
+exit $rc
