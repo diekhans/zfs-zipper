@@ -17,7 +17,8 @@ fi
 case "$daily_zfs_zipper_enable" in
     [Yy][Ee][Ss])
 	echo ""
-	echo "ZFS Zipper backup: results will be mailed from separate process"
+	echo "ZFS Zipper backup run asynchronously: results will be mailed from separate process"
+	echo ""
         rc=1
         ((/opt/sbin/zfs-zipper /opt/etc/zfs-zipper.conf.py 2>&1 | mail -s "ZFS Zipper daily backup: $(hostname)" root)</dev/null &) || rc=3;;
     *)  rc=0;;
