@@ -3,7 +3,6 @@ support for ZFS
 """
 from collections import namedtuple
 from enum import Enum
-import subprocess, tempfile
 from .typeops import asNameOrStr, splitTabLinesToRows
 from .cmdrunner import CmdRunner
 

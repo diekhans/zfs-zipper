@@ -7,7 +7,7 @@ from .zfs import ZfsPoolHealth
 from .typeops import asNameStrOrNone, asStrOrEmpty, currentGmtTimeStr
 logger = logging.getLogger()
 
-# got through level of indirection to allow tests to control time to compare to results.
+# get through level of indirection to allow tests to control time to compare to results.
 currentGmtTimeStrFunc = currentGmtTimeStr
 
 # type of backup

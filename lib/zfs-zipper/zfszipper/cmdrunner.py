@@ -31,7 +31,7 @@ class Pipeline2Exception(Exception):
 class AsyncProc(object):
     def __init__(self, cmd, stdin=None, stdout=None):
         self.cmd = cmd
-        self.stderrFh = tempfile.NamedTemporaryFile(delete=False)
+        self.stderrFh = tempfile.NamedTemporaryFile(prefix="zfszipper")
         self.proc = subprocess.Popen(cmd, stdin=stdin, stdout=stdout, stderr=self.stderrFh)
 
     def waitNoThrow(self):
