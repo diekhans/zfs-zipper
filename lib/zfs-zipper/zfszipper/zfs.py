@@ -35,12 +35,20 @@ class Zfs(object):
         return [ZfsPool(name, getZfsPoolHealth(health))
                 for name,health in self.cmdRunner.callTabSplit(["zpool", "list", "-H", "-o", "name,health"])]
 
+    def havePool(self, poolName):
+        "determine if a pool exists"
+        for name in self.cmdRunner.call(["zpool", "list", "-H", "-o", "name"]):
+            if name == poolName:
+                return True
+        return False
+    
     def getPool(self, poolName):
         "returns ZfsPool or None"
-        results = self.cmdRunner.callTabSplit(["zpool", "list", "-H", "-o", "name,health", poolName])
-        if len(results) == 0:
+        if not self.havePool(poolName):
             return None
-        return ZfsPool(results[0][0], getZfsPoolHealth(results[0][1]))
+        else:
+            results = self.cmdRunner.callTabSplit(["zpool", "list", "-H", "-o", "name,health", poolName])
+            return ZfsPool(results[0][0], getZfsPoolHealth(results[0][1]))
 
     def createSnapshot(self, snapshotName):
         self.cmdRunner.call(["zfs", "snapshot", snapshotName])

@@ -321,7 +321,7 @@ class BackupSetBackup(object):
             if backupPool != None:
                 onlineBackupPools.append(backupPool)
         if len(onlineBackupPools) == 0:
-            raise BackupError("no backup pool is online for backupset " + self.backupSetConf.name + ": in " + ",".join([backupPoolConf.name for backupPoolConf in self.backupPoolConf.backupPools]))
+            raise BackupError("no backup pool is online for backupset " + self.backupSetConf.name + ": in " + ",".join([backupPoolConf.name for backupPoolConf in self.backupSetConf.backupPoolConfs]))
         elif len(onlineBackupPools) > 1:
             raise BackupError("multiple backup pool is online for backupset " + self.backupSetConf.name + ": in " + ",".join([backupPool.name for backupPool in onlineBackupPools]))
         else:
@@ -329,9 +329,7 @@ class BackupSetBackup(object):
 
     def __lookupOnlinePool(self, poolName):
         backupPool = self.zfs.getPool(poolName)
-        if backupPool == None:
-            raise BackupError("unknown back pool in conf: " + poolName)
-        if backupPool.health == ZfsPoolHealth.ONLINE:
+        if (backupPool != None) and (backupPool.health == ZfsPoolHealth.ONLINE):
             return backupPool
         else:
             return None
