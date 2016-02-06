@@ -1,11 +1,15 @@
 """
-Tests that run on FreeBSD with ZFS in vnode file systems.  Must run as root, sadly.
+Tests that run on FreeBSD with ZFS in vnode file systems or OS/X
+on a virtual disk.  Must run as root, sadly.
 """
 import os, sys, argparse, subprocess
 sys.path.insert(0, os.path.normpath(os.path.dirname(sys.argv[0])) + "/../lib/zfs-zipper")
 from collections import namedtuple
 from testops import *
-from vnodeZfs import *
+if os.uname()[0] == 'Darwin':
+    from macVirtualZfs import  zfsVirtualCreatePool, zfsVirtualCleanup
+else:
+    from freeBsdVirtualZfs import  zfsVirtualCreatePool, zfsVirtualCleanup
 
 def writeConfigPy(testEtcDir, codeStr):
     ensureDir(testEtcDir)
@@ -16,7 +20,7 @@ def writeConfigPy(testEtcDir, codeStr):
         fh.write(codeStr + "\n")
     return configPy
 
-class VNodeDiskTests(object):
+class VirtualDiskTests(object):
     zipperLogLevel = "debug"
     testPoolPrefix = "zfszipper_test"
     testBackupSetName = "testBackupSet"
@@ -43,14 +47,14 @@ config = BackupConf([backupSetConf], lockFile="%(testLockFile)s", recordFilePatt
 
     @staticmethod
     def cleanup():
-        deleteFiles(VNodeDiskTests.testVarDir+"/*")
-        Cleanup(VNodeDiskTests.testRootDir, VNodeDiskTests.testPoolPrefix).cleanup()        
+        deleteFiles(VirtualDiskTests.testVarDir+"/*")
+        zfsVirtualCleanup(VirtualDiskTests.testRootDir, VirtualDiskTests.testPoolPrefix)
         
     def __testInit(self):
         self.cleanup()
         ensureDir(self.testVarDir)
-        sourcePool = ZfsVnodePool(self.testRootDir, self.testSourcePool, 10, [self.testSourceFs2])
-        backupPool = ZfsVnodePool(self.testRootDir, self.testBackupPool, 11)
+        sourcePool = zfsVirtualCreatePool(self.testRootDir, self.testSourcePool, [self.testSourceFs2])
+        backupPool = zfsVirtualCreatePool(self.testRootDir, self.testBackupPool)
         sourcePool.setup()
         backupPool.setup()
         return (sourcePool, backupPool)
@@ -138,6 +142,6 @@ args = parseCommand()
 # ensure subprocess can find library
 os.environ["PYTHONPATH"] = "..:" + os.environ.get("PYTHONPATH", "")
 if args.action == "test":
-    VNodeDiskTests().runTest1()
+    VirtualDiskTests().runTest1()
 else:
-    VNodeDiskTests.cleanup()
+    VirtualDiskTests.cleanup()

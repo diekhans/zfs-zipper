@@ -1,7 +1,7 @@
 """
 support for tests on ZFS in FreeBSD vnode devices
 """
-import os, sys, argparse
+import os
 from collections import namedtuple
 from testops import *
 
@@ -18,35 +18,7 @@ def mdconfigList():
         devs.append(MdDevices(row[0], row[0][2:], row[3]))
     return tuple(devs)
 
-class Cleanup(object):
-    def __init__(self, testRootDir, poolNamePrefix):
-        testRootDir = os.path.normpath(testRootDir)
-        self.testPools = self.__findTestPools(poolNamePrefix, testRootDir)
-        self.testDevices = self.__findTestDevices(testRootDir)
-        
-    def __findTestPools(self, poolNamePrefix, testRootDir):
-        # every paranoid checking
-        testFileSystems = [fs for fs in runCmdTabSplit(["zfs", "list", "-H", "-o", "name,mountpoint", "-t", "filesystem"])
-                           if fs[0].startswith(poolNamePrefix) and fs[1].startswith(testRootDir)]
-        return frozenset([fs[0].split("/")[0] for fs in testFileSystems])
-
-    def __findTestDevices(self, testRootDir):
-        return tuple([dev for dev in  mdconfigList() if dev.file.startswith(testRootDir)])
-
-    def __cleanupTestPool(self, poolName):
-        runCmd(["zpool", "destroy", "-f", poolName])
-
-    def __cleanupTestDevices(self, dev):
-        runCmd(["mdconfig", "-d", "-u", dev.unit, "-o", "force"])
-        os.unlink(dev.file)
-
-    def cleanup(self):
-        for testPool in self.testPools:
-            self.__cleanupTestPool(testPool)
-        for testDevice in self.testDevices:
-            self.__cleanupTestDevices(testDevice)
-    
-class ZfsVnodePool(object):
+class _ZfsVnodePool(object):
     """zfs pool in a vnode disk on a file"""
 
     ZfsFs = namedtuple("ZfsFs", ("fileSystemName", "mountPoint"))
@@ -69,15 +41,6 @@ class ZfsVnodePool(object):
         runCmd(["dd", "if=/dev/zero", "of="+self.devFile, "bs=1m", "count="+str(self.sizeMb)])
         runCmd(["mdconfig", "-a", "-t", "vnode", "-f",  self.devFile, "-u", str(self.unitNum)])
 
-    def __destroyZfsPool(self):
-        runCmd(["zpool", "destroy", self.poolName])
-
-    def __createZfsPool(self, zfsFs):
-        if self.poolName in runCmd(["zpool", "list", "-H", "-o", "name"]):
-            self.__destroyZfsPool()
-        runCmd(["zpool", "create", "-m", zfsFs.mountPoint, self.poolName, self.unitDev])
-        runCmd(["zfs", "set", "atime=off", self.poolName])
-
     def getFileSystem(self, fileSystemName):
         for zfsFs in self.fileSystems:
             if zfsFs.fileSystemName == fileSystemName:
@@ -86,7 +49,26 @@ class ZfsVnodePool(object):
     
     def setup(self):
         self.__createVnodeDisk()
-        self.__createZfsPool(self.fileSystems[0])
+        zfsPoolCreate(self.fileSystems[0].mountPoint, self.poolName, self.unitDev)
         for zfsFs in self.fileSystems[1:]:
-            runCmd(["zfs", "create", zfsFs.fileSystemName])
+            zfsFileSystemCreate(zfsFs.fileSystemName)
 
+_nextUnitNumber = 10
+def zfsVirtualCreatePool(testRootDir, poolName, otherFileSystems=[]):
+    unitNum = _nextUnitNumber
+    _nextUnitNumber += 1
+    return _ZfsVnodePool(testRootDir, poolName, unitNum, otherFileSystems)
+
+def _findTestDevices(testRootDir):
+    return tuple([dev for dev in  mdconfigList() if dev.file.startswith(testRootDir)])
+
+def _destroyTestDevices(dev):
+    runCmd(["mdconfig", "-d", "-u", dev.unit, "-o", "force"])
+    os.unlink(dev.file)
+
+def zfsVirtualCleanup(testRootDir, poolNamePrefix):
+    testRootDir = os.path.normpath(testRootDir)
+    for testPool in zfsFindTestPools(poolNamePrefix, testRootDir):
+        zfsPoolDestroy(testPool, force=True)
+    for dev in _findTestDevices(testRootDir):
+        _destroyTestDevices(dev)
