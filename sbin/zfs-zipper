@@ -117,7 +117,7 @@ args = parseCommand()
 if args.verboseLevel != None:
     loggingops.setupStderrLogger(args.verboseLevel)
 if args.config.syslogFacility != None:
-    loggingops.setupSyslogLogger(args.config.syslogFacility, args.config.syslogLevel, programName=os.path.basename(sys.argv[0]))
+    loggingops.setupSyslogLogger(args.config.syslogFacility, args.config.syslogLevel, prog=os.path.basename(sys.argv[0]))
 if (args.verboseLevel == None) and (args.config.syslogFacility == None):
     loggingops.setupNullLogger()
     

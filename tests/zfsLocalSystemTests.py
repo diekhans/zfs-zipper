@@ -1,6 +1,6 @@
 """
-Test of basic ZFS query functions that will only work run on a system with multiple
-ZFS file systems and snapshot.  This may not run everywhere
+Test of basic ZFS query functions that will only work run on a system with
+multiple ZFS file systems and snapshot.  This may not run everywhere
 """
 
 import sys,  unittest

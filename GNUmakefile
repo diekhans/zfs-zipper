@@ -8,13 +8,25 @@ sbinProgs = zfs-zipper
 etcFiles = zfs-zipper.conf.py
 periodicFiles=daily/100.zfs-zipper
 
-prefix=/opt
+sys = $(shell uname -s)
+
+prefix=/usr/local
+
+ifeq (${sys}, FreeBSD)
+  periodicInstalledFiles = ${periodicFiles:%=${periodicDir}/%}
+endif
+
 libDir = ${prefix}/lib
 sbinDir = ${prefix}/sbin
 etcDir = ${prefix}/etc
 periodicDir = /usr/local/etc/periodic
 
-installedFiles = ${libPyRelFiles:%=${libDir}/%} ${libPycRelFiles:%=${libDir}/%} ${sbinProgs:%=${sbinDir}/%} ${etcFiles:%=${etcDir}/%} ${periodicFiles:%=${periodicDir}/%}
+installedFiles = ${libPyRelFiles:%=${libDir}/%} \
+	${libPycRelFiles:%=${libDir}/%} \
+	${sbinProgs:%=${sbinDir}/%} \
+	${etcFiles:%=${etcDir}/%} \
+	${periodicInstalledFiles}
+
 
 uninstallDirs = ${libDir}/zfs-zipper/zfszipper ${libDir}/zfs-zipper
 

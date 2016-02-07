@@ -9,12 +9,10 @@ ospreyZackup1bPool = BackupPoolConf("osprey_zackup1b")  # rotation b
 
 # osprey zroot, excluding tmp, ports and src
 osprey1Set = BackupSetConf("osprey1",
-                           [SourceFileSystemConf("zroot"),
-                            SourceFileSystemConf("zroot/a"),
-                            SourceFileSystemConf("zroot/opt"),
-                            SourceFileSystemConf("zroot/usr"),
-                            SourceFileSystemConf("zroot/usr/local"),
-                            SourceFileSystemConf("zroot/var")],
+                           [SourceFileSystemConf("a_pool/markd_a"),
+                            SourceFileSystemConf("a_pool/osprey"),
+                            SourceFileSystemConf("a_pool/photo_a"),
+                            SourceFileSystemConf("b_pool/photo_b"),],
                            [ospreyZackup1aPool, ospreyZackup1bPool])
 config = BackupConf([osprey1Set],
                     lockFile="/var/run/zfszipper.lock",
