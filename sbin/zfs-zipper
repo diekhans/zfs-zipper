@@ -20,12 +20,15 @@ FS and the BackupPool FS.
 """
 
 import os, sys, re, subprocess, time, argparse, fcntl, logging
-sys.path.insert(0, os.path.normpath(os.path.dirname(sys.argv[0])) + "/../lib/zfs-zipper")
+myBinDir = os.path.normpath(os.path.dirname(sys.argv[0]))
+sys.path.insert(0, os.path.join(myBinDir, "../lib/zfs-zipper"))
 from zfszipper.zfs import Zfs
 from zfszipper.backup import BackupSetBackup, BackupType, BackupRecorder, BackupError
 from zfszipper.config import BackupConf
 from zfszipper import loggingops
 logger = logging.getLogger()
+
+defaultConfig = os.path.join(myBinDir, "../etc/zfs-zipper.conf.py")
 
 def evalConfigFile(configPyFile):
     "evaluate file and return BackupConf object"
@@ -43,7 +46,7 @@ def parseCommand():
     Run a backup from ZFS source pools to back source pools.
     """
     parser = argparse.ArgumentParser(description=usage)
-    parser.add_argument("configPy",
+    parser.add_argument("configPy", default=defaultConfig, nargs='?',
                         help="""Configuration file written in Python.  It should do a `from zfszipper.config import *'
                         and then create an instance of BackupConf() stored in a module-global variable `config'.""")
     parser.add_argument("--full", dest="full", action="store_true", default=False,
