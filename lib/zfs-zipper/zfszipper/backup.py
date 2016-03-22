@@ -1,7 +1,7 @@
 """
 Classes to support zfs-zipper.  Some of these are configuration objects.
 """
-import os,re,logging
+import os, re, logging
 from enum import Enum
 from .zfs import ZfsPoolHealth
 from .typeops import asNameStrOrNone, asStrOrEmpty, currentGmtTimeStr
@@ -223,11 +223,12 @@ class FsBackup(object):
         if info0[0] != "full":
             raise BackupError("expected 'full' in column 0 of ZFS send|receive full record, got: " + str(info0))
         recorder.record(self.backupSetConf, self.backupPool, "full", sourceSnapshot.getFileSystemSnapshotName(), None, backupSnapshot.getFileSystemSnapshotName(), info0[2])
-        
+
     def __backupFull(self, recorder):
         if (len(self.backupSnapshots) > 0) and not self.allowOverwrite:
             raise BackupError("backup of %s to %s: full backup snapshots exists and overwrite not specified" %
                               (self.sourceFileSystem.name, self.backupFileSystemName))
+        
         sourceSnapshot = BackupSnapshot.createCurrent(self.backupSetConf.name, BackupType.full, backupPool=self.backupPool, fileSystem=self.sourceFileSystem)
         backupSnapshot = BackupSnapshot.createFromSnapshot(sourceSnapshot, self.backupFileSystemName)
         logger.info("backup snapshot %s -> %s" % (sourceSnapshot, backupSnapshot))

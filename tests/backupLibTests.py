@@ -16,8 +16,7 @@ logging.basicConfig(filename="/dev/null")
 
 def fakeZfsFileSystem(fileSystemName, pool, mounted=True):
     "defaults parameters for easy fake construction"
-    poolName = pool if isinstance(pool, str) else pool.name
-    return ZfsFileSystem(fileSystemName, "/mnt/"+fileSystemName, mounted)
+    return ZfsMock.makeZfsFileSystem(fileSystemName, pool, mounted)
 
 class GmtTimeFaker(object):
     "replaces currentGmtTimeStr function to produce a predictable set of time responses"

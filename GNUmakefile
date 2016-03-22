@@ -67,6 +67,24 @@ ${periodicDir}/%: etc/periodic/%
 %.pyc: %.py
 	PYTHONPATH=lib/zfs-zipper ${PYTHON} -B -c 'import compileall;compileall.compile_file("$<")'
 
+test: backupLibTests
+
+backupLibTests:
+	(cd tests && python backupLibTests.py)
+
+# slow and requires local ZFS
+ltest: zfsLocalSystemTests
+
+zfsLocalSystemTests:
+	(cd tests && python zfsLocalSystemTests.py)
+
+# virtual disk test must be run as root
+vtest:
+	(cd tests && python virtualDiskTests.py test)
+
+vtestclean:
+	(cd tests && python virtualDiskTests.py clean)
+
 clean:
 	rm -f ${libPycSrcFiles}
 

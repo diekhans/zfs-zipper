@@ -50,6 +50,8 @@ class _ZfsVnodePool(object):
     def setup(self):
         self.__createVnodeDisk()
         zfsPoolCreate(self.fileSystems[0].mountPoint, self.poolName, self.unitDev)
+
+    def createFileSystems(self):
         for zfsFs in self.fileSystems[1:]:
             zfsFileSystemCreate(zfsFs.fileSystemName)
 

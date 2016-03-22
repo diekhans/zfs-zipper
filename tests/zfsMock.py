@@ -1,6 +1,7 @@
 """
 Mock Zfs object, returns pre-configured values for queries and logs action commands
 """
+import os
 from zfszipper.zfs import ZfsPool, ZfsFileSystem, ZfsSnapshot
 from collections import OrderedDict, defaultdict
 from zfszipper.typeops import asNameOrStr
@@ -14,6 +15,12 @@ class ZfsMock(object):
         self.actions = []
         self.sendRecvInfo = []
         self.__buildPoolLookup(poolEntries)
+
+    @staticmethod
+    def makeZfsFileSystem(fileSystemName, pool, mounted=True):
+        "defaults parameters for easy fake construction"
+        poolName = pool if isinstance(pool, str) else pool.name
+        return ZfsFileSystem(fileSystemName, "/mnt/"+fileSystemName, mounted)
 
     def addSendRecvInfo(self, rows):
         "add one set of restuls for Zfs.sendRecv* function "
@@ -47,6 +54,13 @@ class ZfsMock(object):
                 for snapshot in fileSystemEntry[1]:
                     fh.write("    snapshot:" + str(snapshot) + "\n")
                 
+    def listPools(self):
+        return [poolEntry[0] for poolEntry in self.entries]
+
+    def getPool(self, poolName):
+        entry = self.poolsByName.get(poolName)
+        return entry[0] if entry != None else None
+
     def listSnapshots(self, fileSystem):
         return self.fileSystemsByName[asNameOrStr(fileSystem)][1]
 
@@ -59,12 +73,17 @@ class ZfsMock(object):
             return None
         return entry[0]
 
-    def listPools(self):
-        return [poolEntry[0] for poolEntry in self.entries]
-
-    def getPool(self, poolName):
-        entry = self.poolsByName.get(poolName)
-        return entry[0] if entry != None else None
+    def __fileSystemNameToPoolName(self, fileSystemName):
+        # get top directory
+        poolName = os.path.dirname(fileSystemName)
+        while True:
+            nextDir = os.path.dirname(poolName)
+            if nextDir == "":
+                return poolName
+            poolName = nextDir
+    
+    def createFileSystem(self, fileSystemName):
+        return self.makeZfsFileSystem(fileSystemName, self.__fileSystemNameToPoolName(fileSystemName))
 
     def createSnapshot(self, snapshotName):
         self.actions.append(" ".join(("zfs", "snapshot", snapshotName)))

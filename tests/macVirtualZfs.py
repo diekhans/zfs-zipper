@@ -69,6 +69,8 @@ class _ZfsVirtualPool(object):
     def setup(self):
         self.__createVnodeDisk()
         zfsPoolCreate(self.fileSystems[0].mountPoint, self.poolName, self.device)
+
+    def createFileSystems(self):
         for zfsFs in self.fileSystems[1:]:
             zfsFileSystemCreate(zfsFs.fileSystemName)
 

@@ -56,7 +56,9 @@ config = BackupConf([backupSetConf], lockFile="%(testLockFile)s", recordFilePatt
         sourcePool = zfsVirtualCreatePool(self.testRootDir, self.testSourcePool, [self.testSourceFs2])
         backupPool = zfsVirtualCreatePool(self.testRootDir, self.testBackupPool)
         sourcePool.setup()
+        sourcePool.createFileSystems()
         backupPool.setup()
+        backupPool.createFileSystems()
         return (sourcePool, backupPool)
 
     def __writeFile(self, path, contents):

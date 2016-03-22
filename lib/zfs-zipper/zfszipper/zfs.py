@@ -11,25 +11,6 @@ class Zfs(object):
     def __init__(self):
         self.cmdRunner = CmdRunner()
 
-    def listSnapshots(self, fileSystem):
-        "returns list of snapshot names, ordered oldest to newest.  FileSystem can be name or object"
-        return [ZfsSnapshot(name)
-                for name in self.cmdRunner.call(["zfs", "list", "-Hd", "1", "-t", "snapshot", "-o", "name", "-s", "creation", asNameOrStr(fileSystem)])]
-
-    def listFileSystems(self, pool):
-        "returns list of ZfsFileSystem, Pool can be name or object"
-        poolName = asNameOrStr(pool)
-        return [ZfsFileSystem(row[0], row[1], row[2])
-                for row in self.cmdRunner.callTabSplit(["zfs", "list", "-Hr", "-t", "filesystem", "-o", "name,mountpoint,mounted", poolName])]
-
-    def getFileSystem(self, fileSystemName):
-        "returns a ZfsFileSystem or None. Pool can be name or object."
-        results = self.cmdRunner.callTabSplit(["zfs", "list", "-H", "-t", "filesystem", "-o", "name,mountpoint,mounted"])
-        for row in results:
-            if row[0] == fileSystemName:
-                return ZfsFileSystem(row[0], row[1], row[2])
-        return None
-
     def listPools(self):
         "returns list of ZfsPool"
         return [ZfsPool(name, getZfsPoolHealth(health))
@@ -49,6 +30,30 @@ class Zfs(object):
         else:
             results = self.cmdRunner.callTabSplit(["zpool", "list", "-H", "-o", "name,health", poolName])
             return ZfsPool(results[0][0], getZfsPoolHealth(results[0][1]))
+
+    def listFileSystems(self, pool):
+        "returns list of ZfsFileSystem, Pool can be name or object"
+        poolName = asNameOrStr(pool)
+        return [ZfsFileSystem(row[0], row[1], row[2])
+                for row in self.cmdRunner.callTabSplit(["zfs", "list", "-Hr", "-t", "filesystem", "-o", "name,mountpoint,mounted", poolName])]
+
+    def getFileSystem(self, fileSystemName):
+        "returns a ZfsFileSystem or None"
+        results = self.cmdRunner.callTabSplit(["zfs", "list", "-H", "-t", "filesystem", "-o", "name,mountpoint,mounted"])
+        for row in results:
+            if row[0] == fileSystemName:
+                return ZfsFileSystem(row[0], row[1], row[2])
+        return None
+
+    def createFileSystem(self, fileSystemName):
+        "create a new file system"
+        self.cmdRunner.call(["zfs", "create", fileSystemName])
+        return self.getFileSystem(fileSystemName)
+
+    def listSnapshots(self, fileSystem):
+        "returns list of snapshot names, ordered oldest to newest.  FileSystem can be name or object"
+        return [ZfsSnapshot(name)
+                for name in self.cmdRunner.call(["zfs", "list", "-Hd", "1", "-t", "snapshot", "-o", "name", "-s", "creation", asNameOrStr(fileSystem)])]
 
     def createSnapshot(self, snapshotName):
         self.cmdRunner.call(["zfs", "snapshot", snapshotName])
