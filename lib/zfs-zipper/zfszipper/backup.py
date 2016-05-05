@@ -213,6 +213,7 @@ class FsBackup(object):
         self.backupSnapshots = BackupSnapshots(zfs, self.backupFileSystem)
 
     def __recordFull(self, recorder, sourceSnapshot, backupSnapshot, info):
+        # FIXME: create common code for parsing input; note incremental can get 3 or 4 columns
         # full	test_src@snap1	481832
         # size	481832
         if len(info) != 2:
@@ -254,8 +255,8 @@ class FsBackup(object):
         if len(info) != 2:
             raise BackupError("expected 2 lines from ZFS send|receive incremental, got: " + str(info))
         info0 = info[0]
-        if len(info0) != 4:
-            raise BackupError("expected 4 columns in ZFS send|receive incremental record, got: " + str(info0))
+        if not (3 <= len(info0) <= 4):
+            raise BackupError("expected 3-4 columns in ZFS send|receive incremental record, got: " + str(info0))
         if info0[0] != "incremental":
             raise BackupError("expected 'incremental' in column 0 of ZFS send|receive incremental record, got: " + str(info0))
         recorder.record(self.backupSetConf, self.backupPool, "incr", prevSourceSnapshot.getFileSystemSnapshotName(), sourceSnapshot.getFileSystemSnapshotName(), backupSnapshot.getFileSystemSnapshotName(), info0[2])
