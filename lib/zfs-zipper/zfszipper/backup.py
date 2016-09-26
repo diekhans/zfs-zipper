@@ -154,7 +154,6 @@ class BackupSnapshot(object):
         backupType = parse.group(3)
         return (timestr, backupSetName, backupType)
 
-
     @staticmethod
     def isZipperSnapshot(snapshotName):
         "is this one of ours? Maybe or my not include ZFS fs prefix"
@@ -314,22 +313,54 @@ class BackupSetBackup(object):
         self.zfs = zfs
         self.backupSetConf = backupSetConf
         self.allowOverwrite = allowOverwrite
-        self.backupPool = self.__findBackupPoolToUse()
+        self.backupPool, self.importedPool = self.__findBackupPoolToUse()
 
     def __findBackupPoolToUse(self):
-        onlineBackupPools = []
-        for backupPoolConf in self.backupSetConf.backupPoolConfs:
-            backupPool = self.__lookupOnlinePool(backupPoolConf.name)
-            if backupPool != None:
-                onlineBackupPools.append(backupPool)
-        if len(onlineBackupPools) == 0:
-            raise BackupError("no backup pool is online for backupset " + self.backupSetConf.name + ": in " + ",".join([backupPoolConf.name for backupPoolConf in self.backupSetConf.backupPoolConfs]))
-        elif len(onlineBackupPools) > 1:
-            raise BackupError("multiple backup pool is online for backupset " + self.backupSetConf.name + ": in " + ",".join([backupPool.name for backupPool in onlineBackupPools]))
-        else:
-            return onlineBackupPools[0]
+        pool = self.__getImportedPool()
+        if pool != None:
+            return pool, False
+        pool = self.__getExportedPool()
+        if pool != None:
+            return pool, True
+        raise BackupError("no backup pool is imported or ready for import for backupset {} in {}"
+                          .format(self.backupSetConf.name, self.backupSetConf.backupPoolNames))
 
-    def __lookupOnlinePool(self, poolName):
+    def __getExportedPool(self):
+        pools = self.__getExportedPools()
+        if len(pools) == 0:
+            return None
+        elif len(pools) == 1:
+            return pools[0]
+        else:
+            raise BackupError("multiple backup pools are exported for backupset {} in {}"
+                              .format(self.backupSetConf.name, [pool.name for pool in pools]))
+
+    def __getExportedPools(self):
+        pools = []
+        for pool in self.zfs.listExported():
+            if (pool.name in self.backupSetConf.backupPoolNames) and (pool.health == ZfsPoolHealth.ONLINE):
+                pools.append(pool)
+        return pools
+        
+    def __getImportedPool(self):
+        pools = self.__getImportedPools()
+        if len(pools) == 0:
+            return None
+        elif len(pools) == 1:
+            return pools[0]
+        else:
+            raise BackupError("multiple backup pools are imported for backupset {} in {}"
+                              .format(self.backupSetConf.name, [pool.name for pool in pools]))
+
+    def __getImportedPools(self):
+        pools = []
+        for backupPoolConf in self.backupSetConf.backupPoolConfs:
+            pool = self.__lookupImportedPool(backupPoolConf.name)
+            if pool != None:
+                pools.append(pool)
+        return pools
+    
+    def __lookupImportedPool(self, poolName):
         backupPool = self.zfs.getPool(poolName)
         if (backupPool != None) and (backupPool.health == ZfsPoolHealth.ONLINE):
             return backupPool
@@ -352,9 +383,25 @@ class BackupSetBackup(object):
             raise
         fsBackup.backup(self.recorder, backupType)
 
+    def __setupPool(self):
+        if self.importedPool:
+            self.zfs.importPool(self.backupPool)
+        
+    def __freeupPool(self):
+        if self.importedPool:
+            self.zfs.exportPool(self.backupPool)
+        
     def backupAll(self, backupType):
-        for sourceFileSystemConf in self.backupSetConf.sourceFileSystemConfs:
-            self.__fsBackup(backupType, sourceFileSystemConf)
+        self.__setupPool()
+        try:
+            for sourceFileSystemConf in self.backupSetConf.sourceFileSystemConfs:
+                self.__fsBackup(backupType, sourceFileSystemConf)
+        finally:
+            self.__freeupPool()
 
     def backupOne(self, backupType, sourceFileSystemConf):
-        self.__fsBackup(backupType, sourceFileSystemConf)
+        self.__setupPool()
+        try:
+            self.__fsBackup(backupType, sourceFileSystemConf)
+        finally:
+            self.__freeupPool()

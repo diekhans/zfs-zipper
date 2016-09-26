@@ -37,6 +37,10 @@ class BackupSetConf(object):
         for backupPoolConf in self.backupPoolConfs:
             self.__addBackupPoolConf(backupPoolConf)
 
+    @property
+    def backupPoolNames(self):
+        return list(self.backupSetConf.byBackupPoolName.iterkeys())
+
     def __buildSourceFileSystemConfs(self, sourceFileSystemSpecs):
         seen = set()
         confs = []

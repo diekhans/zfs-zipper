@@ -16,6 +16,24 @@ class Zfs(object):
         return [ZfsPool(name, getZfsPoolHealth(health))
                 for name,health in self.cmdRunner.callTabSplit(["zpool", "list", "-H", "-o", "name,health"])]
 
+    def __listExportedParsePool(self, poolName, lineIter):
+        "parse next pool out of lines from zpool import"
+        for line in lineIter:
+            m = re.match("^  state: (.*)$", line)
+            if m is not None:
+                return ZfsPool(poolName, getZfsPoolHealth(m.group(1)))
+        raise Exception("zpool export parsing error: `state:' not found")
+        
+    def listExported(self):
+        "list exported pools available for import"
+        exported = []
+        lineIter = iter(self.cmdRunner.call(["zpool", "import"]))
+        for line in lineIter:
+            m = re.match("^   pool: (.*)$", line)
+            if m is not None:
+                exported.append(self.__listExportedParsePool(m.group(1), lineIter))
+        return exported
+    
     def havePool(self, poolName):
         "determine if a pool exists"
         for name in self.cmdRunner.call(["zpool", "list", "-H", "-o", "name"]):
@@ -55,6 +73,14 @@ class Zfs(object):
         return [ZfsSnapshot(name)
                 for name in self.cmdRunner.call(["zfs", "list", "-Hd", "1", "-t", "snapshot", "-o", "name", "-s", "creation", asNameOrStr(fileSystem)])]
 
+    def importPool(self, poolName):
+        "import specified pool"
+        self.cmdRunner.call(["zfs", "import", pool.name])
+        
+    def exportPool(self, poolName):
+        "export specified pool"
+        self.cmdRunner.call(["zfs", "export", pool.name])
+        
     def createSnapshot(self, snapshotName):
         self.cmdRunner.call(["zfs", "snapshot", snapshotName])
     
