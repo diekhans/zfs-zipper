@@ -122,10 +122,17 @@ config = BackupConf([backupSetConf], lockFile="%(testLockFile)s", recordFilePatt
         sourcePool, backupPool = self.__testInit()
         configPy = writeConfigPy(self.testEtcDir, self.configPyCode)
         self.__test1Full1(sourcePool, backupPool, configPy)
+        # FIXME:  want to test auto-import, however if export test_backup, then import
+        # with
+        #   sudo zpool import -d /var/tmp/zfszipper_tests/dev/
+        #   gets error: zfszipper_test_backup.dmg  UNAVAIL  cannot open
+        # backupPool.exportPool()
         self.__test1Incr1(sourcePool, backupPool, configPy)
         self.__test1Incr2(sourcePool, backupPool, configPy)
         self.__test1FullOverwriteFail(sourcePool, backupPool, configPy)
-
+        self.cleanup()
+    
+        
 def parseCommand():
     usage="""%prog [options] test|clean
     runs tests or do a cleanup

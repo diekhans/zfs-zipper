@@ -2,6 +2,7 @@
 support for ZFS
 """
 from collections import namedtuple
+import re
 from enum import Enum
 from .typeops import asNameOrStr, splitTabLinesToRows
 from .cmdrunner import CmdRunner
@@ -73,13 +74,13 @@ class Zfs(object):
         return [ZfsSnapshot(name)
                 for name in self.cmdRunner.call(["zfs", "list", "-Hd", "1", "-t", "snapshot", "-o", "name", "-s", "creation", asNameOrStr(fileSystem)])]
 
-    def importPool(self, poolName):
+    def importPool(self, pool):
         "import specified pool"
-        self.cmdRunner.call(["zfs", "import", pool.name])
+        self.cmdRunner.call(["zpool", "import", asNameOrStr(pool)])
         
-    def exportPool(self, poolName):
+    def exportPool(self, pool):
         "export specified pool"
-        self.cmdRunner.call(["zfs", "export", pool.name])
+        self.cmdRunner.call(["zpool", "export", asNameOrStr(pool)])
         
     def createSnapshot(self, snapshotName):
         self.cmdRunner.call(["zfs", "snapshot", snapshotName])

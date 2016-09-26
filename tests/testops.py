@@ -70,5 +70,13 @@ def zfsPoolCreate(mountPoint, poolName, device):
     runCmd(["zpool", "create", "-m", mountPoint, poolName, device])
     runCmd(["zfs", "set", "atime=off", poolName])
 
+def zfsPoolExport(poolName):
+    runCmd(["zpool", "export", "-f", poolName])
+
+def zfsPoolImport(poolName):
+    runCmd(["zpool", "import", poolName])
+
+
+    
 def zfsFileSystemCreate(fileSystemName):
     runCmd(["zfs", "create", fileSystemName])

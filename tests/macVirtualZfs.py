@@ -74,6 +74,12 @@ class _ZfsVirtualPool(object):
         for zfsFs in self.fileSystems[1:]:
             zfsFileSystemCreate(zfsFs.fileSystemName)
 
+    def exportPool(self):
+        zfsPoolExport(self.poolName)
+
+    def importPool(self):
+        zfsPoolImport(self.poolName)
+
 def zfsVirtualCreatePool(testRootDir, poolName, otherFileSystems=[]):
     return _ZfsVirtualPool(testRootDir, poolName, otherFileSystems)
             

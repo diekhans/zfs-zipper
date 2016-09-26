@@ -55,6 +55,13 @@ class _ZfsVnodePool(object):
         for zfsFs in self.fileSystems[1:]:
             zfsFileSystemCreate(zfsFs.fileSystemName)
 
+
+    def exportPool(self):
+        zfsPoolExport(self.poolName)
+
+    def importPool(self):
+        zfsPoolImport(self.poolName)
+
 _nextUnitNumber = 10
 def zfsVirtualCreatePool(testRootDir, poolName, otherFileSystems=[]):
     unitNum = _nextUnitNumber
