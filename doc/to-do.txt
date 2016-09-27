@@ -1,0 +1,9 @@
+
+- change log to get snap shot sizes from zfs list -t snap
+- fix problem with auto import tests and mac virtual box
+  tests/virtualDiskTests.py
+        # FIXME:  want to test auto-import, however if export test_backup, then import
+        # with
+        #   sudo zpool import -d /var/tmp/zfszipper_tests/dev/
+        #   gets error: zfszipper_test_backup.dmg  UNAVAIL  cannot open
+
