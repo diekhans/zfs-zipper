@@ -2,14 +2,17 @@
 Tests that run on FreeBSD with ZFS in vnode file systems or OS/X
 on a virtual disk.  Must run as root, sadly.
 """
-import os, sys, argparse, subprocess
+import os
+import sys
+import argparse
+import logging
+logger = logging.getLogger()
 sys.path.insert(0, os.path.normpath(os.path.dirname(sys.argv[0])) + "/../lib/zfs-zipper")
-from collections import namedtuple
-from testops import *
+from testops import ensureDir, runCmd, deleteFiles
 if os.uname()[0] == 'Darwin':
-    from macVirtualZfs import  zfsVirtualCreatePool, zfsVirtualCleanup
+    from macVirtualZfs import zfsVirtualCreatePool, zfsVirtualCleanup
 else:
-    from freeBsdVirtualZfs import  zfsVirtualCreatePool, zfsVirtualCleanup
+    from freeBsdVirtualZfs import zfsVirtualCreatePool, zfsVirtualCleanup
 
 def writeConfigPy(testEtcDir, codeStr):
     ensureDir(testEtcDir)
@@ -47,9 +50,9 @@ config = BackupConf([backupSetConf], lockFile="%(testLockFile)s", recordFilePatt
 
     @staticmethod
     def cleanup():
-        deleteFiles(VirtualDiskTests.testVarDir+"/*")
+        deleteFiles(VirtualDiskTests.testVarDir + "/*")
         zfsVirtualCleanup(VirtualDiskTests.testRootDir, VirtualDiskTests.testPoolPrefix)
-        
+
     def __testInit(self):
         self.cleanup()
         ensureDir(self.testVarDir)
@@ -65,10 +68,10 @@ config = BackupConf([backupSetConf], lockFile="%(testLockFile)s", recordFilePatt
         with open(path, "w") as fh:
             fh.write(contents + "\n")
 
-    def __writeTestFiles(self, pool, fileSystem, relFileNames, contentFunction=lambda x:x):
+    def __writeTestFiles(self, pool, fileSystem, relFileNames, contentFunction=lambda x: x):
         mountPoint = pool.getFileSystem(fileSystem).mountPoint
         for relFileName in relFileNames:
-            self.__writeFile(mountPoint+"/"+relFileName, contentFunction(relFileName))
+            self.__writeFile(mountPoint + "/" + relFileName, contentFunction(relFileName))
 
     def __runZfsZipper(self, configPy, full, allowOverwrite=False, backupSet=None, sourceFileSystems=None):
         cmd = ["../sbin/zfs-zipper", configPy]
@@ -76,12 +79,12 @@ config = BackupConf([backupSetConf], lockFile="%(testLockFile)s", recordFilePatt
             cmd.append("--full")
         if allowOverwrite:
             cmd.append("--allowOverwrite")
-        if backupSet != None:
-            cmd.append("--backupSet="+backupSet)
-        if sourceFileSystems != None:
-            cmd.extend(["--sourceFileSystem="+fs for fs in sourceFileSystems])
-        if self.zipperLogLevel != None:
-            cmd.append("--verboseLevel="+self.zipperLogLevel)
+        if backupSet is not None:
+            cmd.append("--backupSet=" + backupSet)
+        if sourceFileSystems is not None:
+            cmd.extend(["--sourceFileSystem=" + fs for fs in sourceFileSystems])
+        if self.zipperLogLevel is not None:
+            cmd.append("--verboseLevel=" + self.zipperLogLevel)
         runCmd(cmd)
 
     @staticmethod
@@ -117,7 +120,7 @@ config = BackupConf([backupSetConf], lockFile="%(testLockFile)s", recordFilePatt
                 raise Exception("expected error with message containing \"%s\", got \"%s\"" % (expectMsg, str(ex)))
         if ok:
             raise Exception("Excepted failure, didn't get exception")
-        
+
     def runTest1(self):
         sourcePool, backupPool = self.__testInit()
         configPy = writeConfigPy(self.testEtcDir, self.configPyCode)
@@ -131,10 +134,10 @@ config = BackupConf([backupSetConf], lockFile="%(testLockFile)s", recordFilePatt
         self.__test1Incr2(sourcePool, backupPool, configPy)
         self.__test1FullOverwriteFail(sourcePool, backupPool, configPy)
         self.cleanup()
-    
-        
+
+
 def parseCommand():
-    usage="""%prog [options] test|clean
+    usage = """%prog [options] test|clean
     runs tests or do a cleanup
     """
     parser = argparse.ArgumentParser(description=usage)
@@ -142,7 +145,7 @@ def parseCommand():
                         help="""test to run tests, or clean to cleanup failed tests""")
     args = parser.parse_args()
     if args.action not in ("test", "clean"):
-        parser.error("expected on of test or clean, got %s"% args.action)
+        parser.error("expected on of test or clean, got %s" % args.action)
     if os.geteuid() != 0:
         parser.error("must be run as root")
     return args

@@ -1,14 +1,17 @@
 """
 common functions used by various tests.
 """
-import os, sys, subprocess, errno
+import os
+import sys
+import subprocess
+import errno
 from glob import glob
 from collections import namedtuple
 from zfszipper.cmdrunner import ProcessError
 
 def ensureDir(dir):
     """Ensure that a directory exists, creating it (and parents) if needed."""
-    try: 
+    try:
         os.makedirs(dir)
     except OSError, e:
         if e.errno != errno.EEXIST:
@@ -76,7 +79,5 @@ def zfsPoolExport(poolName):
 def zfsPoolImport(poolName):
     runCmd(["zpool", "import", poolName])
 
-
-    
 def zfsFileSystemCreate(fileSystemName):
     runCmd(["zfs", "create", fileSystemName])

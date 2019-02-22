@@ -7,6 +7,7 @@ libPycSrcFiles = ${libPycRelFiles:%=lib/%}
 sbinProgs = zfs-zipper
 etcFiles = zfs-zipper.conf.py
 periodicFiles=daily/100.zfs-zipper
+pyFiles = ${libPycSrcFiles} ${sbinProgs:%=sbin/%} ${etcFiles:%=etc/%}
 
 sys = $(shell uname -s)
 
@@ -67,23 +68,26 @@ ${periodicDir}/%: etc/periodic/%
 %.pyc: %.py
 	PYTHONPATH=lib/zfs-zipper ${PYTHON} -B -c 'import compileall;compileall.compile_file("$<")'
 
+lint:
+	${PYTHON} -m flake8 
+
 test: backupLibTests
 
 backupLibTests:
-	(cd tests && python backupLibTests.py)
+	(cd tests && ${PYTHON} backupLibTests.py)
 
 # slow and requires local ZFS
 ltest: zfsLocalSystemTests
 
 zfsLocalSystemTests:
-	(cd tests && python zfsLocalSystemTests.py)
+	(cd tests && ${PYTHON} zfsLocalSystemTests.py)
 
 # virtual disk test must be run as root
 vtest:
-	(cd tests && python virtualDiskTests.py test)
+	(cd tests && ${PYTHON} virtualDiskTests.py test)
 
 vtestclean:
-	(cd tests && python virtualDiskTests.py clean)
+	(cd tests && ${PYTHON} virtualDiskTests.py clean)
 
 clean:
 	rm -f ${libPycSrcFiles}

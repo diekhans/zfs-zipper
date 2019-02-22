@@ -15,7 +15,7 @@ Snapshots are named in the form:
 When a source FS is first backed up to a BackupPool, a full snapshot is
 created.  This serves as a baseline for the incremental backups.  If the
 source full pool is to be destroyed, a new full backup for the target pool
-must first be made.All that matters is the latest full is on both the source
+must first be made. All that matters is the latest full is on both the source
 FS and the BackupPool FS.
 """
 
@@ -103,7 +103,7 @@ class Backup(object):
             self.__backupSomeFileSystems(backupper, backupSetConf, sourceFileSystems)
         else:
             backupper.backupAll(self.backupType)
-            
+
     def __backupAllSets(self, recorder):
         for backupSetConf in self.config.backupSets:
             self.__backupOneSet(recorder, backupSetConf)
@@ -123,7 +123,7 @@ if args.config.syslogFacility != None:
     loggingops.setupSyslogLogger(args.config.syslogFacility, args.config.syslogLevel, prog=os.path.basename(sys.argv[0]))
 if (args.verboseLevel == None) and (args.config.syslogFacility == None):
     loggingops.setupNullLogger()
-    
+
 backup = Backup(args)
 try:
     backup.runBackups()

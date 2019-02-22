@@ -2,12 +2,15 @@
 Test of zfs-zipper tests of library functions.
 """
 
-import sys, unittest, tempfile
+import os
+import sys
+import unittest
+import tempfile
 sys.path.insert(0, "../lib/zfs-zipper")
 from zfszipper import backup
-from zfszipper.backup import BackupSnapshot, BackupType, FsBackup, BackupError,  BackupSetBackup, BackupRecorder
-from zfszipper.zfs import ZfsPool, ZfsFileSystem, ZfsSnapshot, ZfsPoolHealth
-from zfszipper.config import *
+from zfszipper.backup import BackupSnapshot, BackupType, FsBackup, BackupError, BackupSetBackup, BackupRecorder
+from zfszipper.zfs import ZfsPool, ZfsSnapshot, ZfsPoolHealth
+from zfszipper.config import BackupPoolConf, BackupSetConf, SourceFileSystemConf
 from zfsMock import ZfsMock
 from zfszipper.typeops import splitLinesToRows
 
@@ -20,13 +23,13 @@ def fakeZfsFileSystem(fileSystemName, pool, mounted=True):
 
 class GmtTimeFaker(object):
     "replaces currentGmtTimeStr function to produce a predictable set of time responses"
-    
+
     def __init__(self, yearMonDay, hour=0, minute=0, sec=0):
         self.yearMonDay = yearMonDay
         self.hour = hour
         self.minute = minute
         self.sec = sec
-        
+
     def __call__(self):
         timestr = "%sT%0.2d:%0.2d:%0.2d" % (self.yearMonDay, self.hour, self.minute, self.sec)
         self.sec += 1
@@ -43,19 +46,19 @@ class GmtTimeFaker(object):
         timer = GmtTimeFaker(yearMonDay, hour, minute, sec)
         backup.currentGmtTimeStrFunc = timer
         return timer
-    
+
 class TestBackupRecorder(BackupRecorder):
     "adds functionality for build on tests and cleaning up"
 
     def __init__(self, testId):
-        fd, self.tmpTsv = tempfile.mkstemp(".tsv", "backup-test."+testId)
+        fd, self.tmpTsv = tempfile.mkstemp(".tsv", "backup-test." + testId)
         os.close(fd)
         BackupRecorder.__init__(self, self.tmpTsv)
 
     def readLines(self):
         with open(self.tmpTsv) as fh:
             return splitLinesToRows(fh.read())
-        
+
     def __del__(self):
         os.unlink(self.tmpTsv)
         self.close()  # ensure closed
@@ -93,15 +96,6 @@ class BackupSnapshotTests(unittest.TestCase):
         fsSSName = self.__mkFsSnapshot(self.testFs1, self.incrTestName)
         ss = BackupSnapshot.createFromSnapshotName(fsSSName, dropFileSystem=True)
         self.assertEqual(str(ss), self.incrTestName)
-
-    def testDropFsParse(self):
-        fsSSName = self.__mkFsSnapshot(self.testFs1, self.incrTestName)
-        ss = BackupSnapshot.createFromSnapshotName(fsSSName, dropFileSystem=True)
-        self.assertEqual(str(ss), self.incrTestName)
-
-    def testCurrentFull(self):
-        ss = BackupSnapshot.createCurrent("someset", BackupSnapshot.full, "somepool", fakeZfsFileSystem("somefs", "somepool"))
-        self.assertRegexpMatches(str(ss), "^somefs@zipper_[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}_someset_full$")
 
     def testCurrentFull(self):
         ss = BackupSnapshot.createCurrent("someset", BackupType.full, "somepool", fakeZfsFileSystem("somefs", "somepool"))
@@ -155,14 +149,13 @@ class BackuperTests(unittest.TestCase):
                                ZfsSnapshot('zipper_2015-03-02T17:30:34_testBackupSet_incr'))
     backupPool1Fs2Snapshots = (ZfsSnapshot('zipper_2015-01-01T17:30:34_testBackupSet_full'),
                                ZfsSnapshot('zipper_2015-02-01T17:30:34_testBackupSet_incr'),
-                               ZfsSnapshot('zipper_2015-03-02T17:30:34_testBackupSet_incr')) 
+                               ZfsSnapshot('zipper_2015-03-02T17:30:34_testBackupSet_incr'))
     backupPool2Fs1Snapshots = (ZfsSnapshot('zipper_2015-01-01T17:30:34_testBackupSet_full'),
                                ZfsSnapshot('zipper_2015-02-01T17:30:34_testBackupSet_incr'),
                                ZfsSnapshot('zipper_2015-03-02T17:30:34_testBackupSet_incr'))
     backupPool2Fs2Snapshots = (ZfsSnapshot('zipper_2015-01-01T17:30:34_testBackupSet_full'),
                                ZfsSnapshot('zipper_2015-02-01T17:30:34_testBackupSet_incr'),
-                               ZfsSnapshot('zipper_2015-03-02T17:30:34_testBackupSet_incr')) 
-
+                               ZfsSnapshot('zipper_2015-03-02T17:30:34_testBackupSet_incr'))
 
     def __mkInitialZfs(self):
         zfsConf = ((self.srcPool1, ((self.srcPool1Fs1, self.srcPool1Fs1StraySnapShots),
@@ -173,23 +166,23 @@ class BackuperTests(unittest.TestCase):
     def __mkBackupPool1Zfs(self, sourceFs1Snapshots=(), sourceFs2Snapshots=(),
                            backupFs1Snapshots=None, backupFs2Snapshots=None):
         "zfs configured for backupPool1 cases.  snapshots default to the same"
-        if backupFs1Snapshots == None:
+        if backupFs1Snapshots is None:
             backupFs1Snapshots = sourceFs1Snapshots
-        if backupFs2Snapshots == None:
+        if backupFs2Snapshots is None:
             backupFs2Snapshots = sourceFs1Snapshots
-        zfsConf = ((self.srcPool1, ((self.srcPool1Fs1, self.srcPool1Fs1StraySnapShots+sourceFs1Snapshots),
+        zfsConf = ((self.srcPool1, ((self.srcPool1Fs1, self.srcPool1Fs1StraySnapShots + sourceFs1Snapshots),
                                     (self.srcPool1Fs2, sourceFs2Snapshots))),
                    (self.backupPool1, ((self.backupPool1Fs1, backupFs1Snapshots),
                                        (self.backupPool1Fs2, backupFs2Snapshots))))
         return ZfsMock(zfsConf)
-        
+
     def __mkBackupPool2Zfs(self, sourceFs1Snapshots=(), sourceFs2Snapshots=(),
                            backupFs1Snapshots=None, backupFs2Snapshots=None,
                            includeBackupFileSystems=True):
         "zfs configured for backupPool2 cases.  snapshots default to the same"
-        if backupFs1Snapshots == None:
+        if backupFs1Snapshots is None:
             backupFs1Snapshots = sourceFs1Snapshots
-        if backupFs2Snapshots == None:
+        if backupFs2Snapshots is None:
             backupFs2Snapshots = sourceFs1Snapshots
         zfsConf = ((self.srcPool1, ((self.srcPool1Fs1, sourceFs1Snapshots),
                                     (self.srcPool1Fs2, sourceFs2Snapshots))),)
@@ -197,18 +190,18 @@ class BackuperTests(unittest.TestCase):
             zfsConf += ((self.backupPool2, ((self.backupPool2Fs1, backupFs1Snapshots),
                                             (self.backupPool2Fs2, backupFs2Snapshots))),)
         return ZfsMock(zfsConf)
-        
+
     def __setupFsBackup1(self, zfs, sourceFileSystemName, backupPool=backupPool1, allowOverwrite=False):
         return FsBackup(zfs, self.backupConf1,
                         zfs.getFileSystem(sourceFileSystemName),
                         backupPool, allowOverwrite)
-    
+
     def __twoFsBackup(self, zfs, recorder, backupType, backupPool=backupPool1, allowOverwrite=False):
         fsBackup = self.__setupFsBackup1(zfs, "srcPool1", backupPool=backupPool, allowOverwrite=allowOverwrite)
         fsBackup.backup(recorder, backupType)
         fsBackup = self.__setupFsBackup1(zfs, "srcPool1/srcPool1Fs2", backupPool=backupPool, allowOverwrite=allowOverwrite)
         fsBackup.backup(recorder, backupType)
-    
+
     def __assertActions(self, zfs, expected):
         for i in xrange(min(len(zfs.actions), len(expected))):
             self.assertEqual(zfs.actions[i], expected[i])
@@ -224,7 +217,6 @@ class BackuperTests(unittest.TestCase):
             self.assertEquals(lines[i], expectedHdr[i])
         self.assertEquals(len(lines), len(expectedHdr))
 
-        
     def testInitialFull(self):
         GmtTimeFaker.setTime("2001-01-01")
         zfs = self.__mkInitialZfs()
@@ -241,9 +233,9 @@ class BackuperTests(unittest.TestCase):
                               ['2001-01-01T00:00:01\ttestBackupSet\tbackupPool1\tfull\tsrcPool1@zipper_2001-01-01T00:00:00_testBackupSet_full\t\tbackupPool1/srcPool1@zipper_2001-01-01T00:00:00_testBackupSet_full\t50000\t\t',
                                '2001-01-01T00:00:03\ttestBackupSet\tbackupPool1\tfull\tsrcPool1/srcPool1Fs2@zipper_2001-01-01T00:00:02_testBackupSet_full\t\tbackupPool1/srcPool1/srcPool1Fs2@zipper_2001-01-01T00:00:02_testBackupSet_full\t50000\t\t'])
         del recorder
-        
+
     def testIncr1(self):
-        # 1st incr 
+        # 1st incr
         GmtTimeFaker.setTime("2001-01-02")
         zfs = self.__mkBackupPool1Zfs(self.backupPool1Fs1Snapshots[0:1],
                                       self.backupPool1Fs2Snapshots[0:1])
@@ -262,7 +254,7 @@ class BackuperTests(unittest.TestCase):
         del recorder
 
     def testIncr2(self):
-        # 2nd incr 
+        # 2nd incr
         GmtTimeFaker.setTime("1999-02-01")
         zfs = self.__mkBackupPool1Zfs(self.backupPool1Fs1Snapshots[0:2],
                                       self.backupPool1Fs2Snapshots[0:2])
@@ -335,8 +327,8 @@ class BackuperTests(unittest.TestCase):
         # incr on second pool, which only has a full, should bring up-to-date add two
         # incremental.  Source has backups for both pools
         GmtTimeFaker.setTime("2022-02-01")
-        zfs = self.__mkBackupPool2Zfs(self.backupPool2Fs1Snapshots[0:1]+self.backupPool1Fs1Snapshots[0:3],
-                                      self.backupPool2Fs2Snapshots[0:1]+self.backupPool1Fs2Snapshots[0:3],
+        zfs = self.__mkBackupPool2Zfs(self.backupPool2Fs1Snapshots[0:1] + self.backupPool1Fs1Snapshots[0:3],
+                                      self.backupPool2Fs2Snapshots[0:1] + self.backupPool1Fs2Snapshots[0:3],
                                       self.backupPool2Fs1Snapshots[0:1],
                                       self.backupPool2Fs2Snapshots[0:1])
         zfs.addSendRecvInfos(((("incremental", "zipper__testBackupSet_full", "zipper_2015-02-01T17:30:34_testBackupSet_incr", "50000"), ("size", "50000")),
@@ -366,7 +358,7 @@ class BackuperTests(unittest.TestCase):
         del recorder
 
     def testIncrFailPool2(self):
-        #fail on existing file systems, then redo it allowOverwrite
+        # fail on existing file systems, then redo it allowOverwrite
         GmtTimeFaker.setTime("1977-02-01")
         zfs = self.__mkBackupPool2Zfs(self.backupPool1Fs1Snapshots[0:1],
                                       self.backupPool1Fs2Snapshots[0:1],
@@ -385,9 +377,9 @@ class BackuperTests(unittest.TestCase):
                               'zfs snapshot srcPool1/srcPool1Fs2@zipper_1977-02-01T00:00:03_testBackupSet_full',
                               'zfs send -P srcPool1/srcPool1Fs2@zipper_1977-02-01T00:00:03_testBackupSet_full | zfs receive -F backupPool2/srcPool1/srcPool1Fs2@zipper_1977-02-01T00:00:03_testBackupSet_full'])
         self.__assertRecorded(recorder,
-                            ['1977-02-01T00:00:00\ttestBackupSet\tbackupPool2\terror\tsrcPool1\t\t\tBackupError\tincremental backup of srcPool1 to backupPool2/srcPool1: no common full backup snapshot, backup pool backupPool2 already has the file system, must specify allowOverwrite to create a new full backup\t',
-                             '1977-02-01T00:00:02\ttestBackupSet\tbackupPool2\tfull\tsrcPool1@zipper_1977-02-01T00:00:01_testBackupSet_full\t\tbackupPool2/srcPool1@zipper_1977-02-01T00:00:01_testBackupSet_full\t50000\t\t',
-                             '1977-02-01T00:00:04\ttestBackupSet\tbackupPool2\tfull\tsrcPool1/srcPool1Fs2@zipper_1977-02-01T00:00:03_testBackupSet_full\t\tbackupPool2/srcPool1/srcPool1Fs2@zipper_1977-02-01T00:00:03_testBackupSet_full\t50000\t\t'])
+                              ['1977-02-01T00:00:00\ttestBackupSet\tbackupPool2\terror\tsrcPool1\t\t\tBackupError\tincremental backup of srcPool1 to backupPool2/srcPool1: no common full backup snapshot, backup pool backupPool2 already has the file system, must specify allowOverwrite to create a new full backup\t',
+                               '1977-02-01T00:00:02\ttestBackupSet\tbackupPool2\tfull\tsrcPool1@zipper_1977-02-01T00:00:01_testBackupSet_full\t\tbackupPool2/srcPool1@zipper_1977-02-01T00:00:01_testBackupSet_full\t50000\t\t',
+                               '1977-02-01T00:00:04\ttestBackupSet\tbackupPool2\tfull\tsrcPool1/srcPool1Fs2@zipper_1977-02-01T00:00:03_testBackupSet_full\t\tbackupPool2/srcPool1/srcPool1Fs2@zipper_1977-02-01T00:00:03_testBackupSet_full\t50000\t\t'])
         del recorder
 
     def testBackupSetToPool1Full(self):
@@ -402,10 +394,11 @@ class BackuperTests(unittest.TestCase):
         recorder = TestBackupRecorder(self.id())
         bsb = BackupSetBackup(zfs, recorder, self.backupConf1, allowOverwrite=False)
         bsb.backupAll(BackupType.full)
-        self.__assertActions(zfs,['zfs snapshot srcPool1@zipper_1982-02-01T00:00:00_testBackupSet_full',
-                                  'zfs send -P srcPool1@zipper_1982-02-01T00:00:00_testBackupSet_full | zfs receive backupPool1/srcPool1@zipper_1982-02-01T00:00:00_testBackupSet_full',
-                                  'zfs snapshot srcPool1/srcPool1Fs2@zipper_1982-02-01T00:00:02_testBackupSet_full',
-                                  'zfs send -P srcPool1/srcPool1Fs2@zipper_1982-02-01T00:00:02_testBackupSet_full | zfs receive backupPool1/srcPool1/srcPool1Fs2@zipper_1982-02-01T00:00:02_testBackupSet_full'])
+        self.__assertActions(zfs,
+                             ['zfs snapshot srcPool1@zipper_1982-02-01T00:00:00_testBackupSet_full',
+                              'zfs send -P srcPool1@zipper_1982-02-01T00:00:00_testBackupSet_full | zfs receive backupPool1/srcPool1@zipper_1982-02-01T00:00:00_testBackupSet_full',
+                              'zfs snapshot srcPool1/srcPool1Fs2@zipper_1982-02-01T00:00:02_testBackupSet_full',
+                              'zfs send -P srcPool1/srcPool1Fs2@zipper_1982-02-01T00:00:02_testBackupSet_full | zfs receive backupPool1/srcPool1/srcPool1Fs2@zipper_1982-02-01T00:00:02_testBackupSet_full'])
         self.__assertRecorded(recorder,
                               ['1982-02-01T00:00:01\ttestBackupSet\tbackupPool1\tfull\tsrcPool1@zipper_1982-02-01T00:00:00_testBackupSet_full\t\tbackupPool1/srcPool1@zipper_1982-02-01T00:00:00_testBackupSet_full\t50000\t\t',
                                '1982-02-01T00:00:03\ttestBackupSet\tbackupPool1\tfull\tsrcPool1/srcPool1Fs2@zipper_1982-02-01T00:00:02_testBackupSet_full\t\tbackupPool1/srcPool1/srcPool1Fs2@zipper_1982-02-01T00:00:02_testBackupSet_full\t50000\t\t'])

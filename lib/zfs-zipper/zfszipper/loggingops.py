@@ -1,7 +1,9 @@
 """
 Operations associated with logging
 """
-import logging, os, sys
+import logging
+import os
+import sys
 from logging.handlers import SysLogHandler
 
 
@@ -45,7 +47,7 @@ def getSyslogAddress():
         if os.path.exists(dev):
             return dev
     return ("localhost", 514)
-    
+
 def setupSyslogLogger(facility, level, prog=None, address=None):
     """configure logging to syslog based on the specified facility.  If
     prog specified, each line is prefixed with the name"""
@@ -54,17 +56,17 @@ def setupSyslogLogger(facility, level, prog=None, address=None):
     handler = SysLogHandler(address=address, facility=facility)
     # add a formatter that includes the program name as the syslog ident
     if prog is not None:
-        handler.setFormatter(logging.Formatter(fmt=prog+" %(message)s"))
+        handler.setFormatter(logging.Formatter(fmt=prog + " %(message)s"))
     handler.setLevel(level)
     setupLogger(handler)
-    
+
 def setupNullLogger(level=None):
     "configure discard logging"
     handler = logging.NullHandler()
     if level is not None:
         handler.setLevel(level)
     setupLogger(handler)
-                                    
+
 def addCmdOptions(parser):
     """
     Add command line options related to logging
@@ -87,4 +89,3 @@ def setupFromCmd(opts, prog=None):
         setupSyslogLogger(opts.syslogFacility, opts.logLevel, prog=prog)
     else:
         setupStderrLogger(opts.logLevel)
-        

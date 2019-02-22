@@ -3,7 +3,7 @@ Mock Zfs object, returns pre-configured values for queries and logs action comma
 """
 import os
 from zfszipper.zfs import ZfsPool, ZfsFileSystem, ZfsSnapshot
-from collections import OrderedDict, defaultdict
+from collections import OrderedDict
 from zfszipper.typeops import asNameOrStr
 
 class ZfsMock(object):
@@ -19,8 +19,7 @@ class ZfsMock(object):
     @staticmethod
     def makeZfsFileSystem(fileSystemName, pool, mounted=True):
         "defaults parameters for easy fake construction"
-        poolName = pool if isinstance(pool, str) else pool.name
-        return ZfsFileSystem(fileSystemName, "/mnt/"+fileSystemName, mounted)
+        return ZfsFileSystem(fileSystemName, "/mnt/" + fileSystemName, mounted)
 
     def addSendRecvInfo(self, rows):
         "add one set of restuls for Zfs.sendRecv* function "
@@ -36,7 +35,7 @@ class ZfsMock(object):
                 raise Exception("poolEntry not ZfsPool: %s %s" % (type(poolEntry[0]), str(poolEntry[0])))
             self.poolsByName[poolEntry[0].name] = poolEntry
             self.__buildFileSystemLookup(poolEntry[0].name, poolEntry[1])
-            
+
     def __buildFileSystemLookup(self, poolName, fileSystemEntries):
         for fileSystemEntry in fileSystemEntries:
             if not isinstance(fileSystemEntry[0], ZfsFileSystem):
@@ -53,13 +52,13 @@ class ZfsMock(object):
                 fh.write("  filesystem:" + str(fileSystemEntry[0]) + "\n")
                 for snapshot in fileSystemEntry[1]:
                     fh.write("    snapshot:" + str(snapshot) + "\n")
-                
+
     def listPools(self):
         return [poolEntry[0] for poolEntry in self.entries]
 
     def getPool(self, poolName):
         entry = self.poolsByName.get(poolName)
-        return entry[0] if entry != None else None
+        return entry[0] if entry is not None else None
 
     def listSnapshots(self, fileSystem):
         return self.fileSystemsByName[asNameOrStr(fileSystem)][1]
@@ -69,7 +68,7 @@ class ZfsMock(object):
 
     def getFileSystem(self, fileSystemName):
         entry = self.fileSystemsByName.get(fileSystemName)
-        if entry == None:
+        if entry is None:
             return None
         return entry[0]
 
@@ -81,7 +80,7 @@ class ZfsMock(object):
             if nextDir == "":
                 return poolName
             poolName = nextDir
-    
+
     def createFileSystem(self, fileSystemName):
         return self.makeZfsFileSystem(fileSystemName, self.__fileSystemNameToPoolName(fileSystemName))
 
@@ -96,7 +95,7 @@ class ZfsMock(object):
             return self.sendRecvInfo.pop()
         else:
             return tuple()
-        
+
     def sendRecvFull(self, sourceSnapshotName, backupSnapshotName, allowOverwrite=False):
         sendCmd = ["zfs", "send", "-P", sourceSnapshotName]
         recvCmd = ["zfs", "receive"]
@@ -105,7 +104,7 @@ class ZfsMock(object):
         recvCmd.append(backupSnapshotName)
         self.__recordSendRecv(sendCmd, recvCmd)
         return self.__popSendRecvInfo()
-    
+
     def sendRecvIncr(self, sourceBaseSnapshotName, sourceSnapshotName, backupSnapshotName):
         sendCmd = ["zfs", "send", "-P", "-i", sourceBaseSnapshotName, sourceSnapshotName]
         recvCmd = ["zfs", "receive", backupSnapshotName]

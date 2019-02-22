@@ -1,3 +1,6 @@
+- Ideas to move files and snapshots from one pool to another
+   https://docs.oracle.com/cd/E18752_01/html/819-5461/gbchx.html#gfwqb
+
 
 - change log to get snap shot sizes from zfs list -t snap
 - fix problem with auto import tests and mac virtual box
@@ -6,4 +9,26 @@
         # with
         #   sudo zpool import -d /var/tmp/zfszipper_tests/dev/
         #   gets error: zfszipper_test_backup.dmg  UNAVAIL  cannot open
+
+- initialize new zpool, which means creating parent file systems if they don't exist.
+
+- mbuffer in pipe is suppose to really speed up zfs send/recieve
+
+- running out of diskspace on backup media screws logging up:
+    time	backupSet	backupPool	action	src1Snap	src2Snap	backupSnap	size	exception	info
+    2019-02-19T20:13:23	osprey1	osprey_zackup1a	incr	a_pool/markd_a@zipper_2019-02-14T02:07:06_osprey1_incr	a_pool/markd_a@zipper_2019-02-19T20:13:09_osprey1_incr	osprey_zackup1a/a_pool/markd_a@zipper_2019-02-19T20:13:09_osprey1_incr	a_pool/markd_a@zipper_2019-02-19T20:13:09_osprey1_incr		
+    2019-02-19T20:13:27	osprey1	osprey_zackup1a	incr	a_pool/osprey@zipper_2019-02-14T02:07:37_osprey1_incr	a_pool/osprey@zipper_2019-02-19T20:13:26_osprey1_incr	osprey_zackup1a/a_pool/osprey@zipper_2019-02-19T20:13:26_osprey1_incr	a_pool/osprey@zipper_2019-02-19T20:13:26_osprey1_incr		
+    2019-02-19T20:13:32	osprey1	osprey_zackup1a	incr	a_pool/photo_a@zipper_2019-02-14T02:08:10_osprey1_incr	a_pool/photo_a@zipper_2019-02-19T20:13:30_osprey1_incr	osprey_zackup1a/a_pool/photo_a@zipper_2019-02-19T20:13:30_osprey1_incr	a_pool/photo_a@zipper_2019-02-19T20:13:30_osprey1_incr		
+    2019-02-19T20:24:15	osprey1	osprey_zackup1a	error	b_pool/photo_b			Pipeline2Exception	zfs send -P -i b_pool/photo_b@zipper_2018-10-23T21:15:51_osprey1_incr b_pool/photo_b@zipper_2018-10-31T00:14:00_osprey1_incr exited 1: incremental zipper_2018-10-23T21:15:51_osprey1_incr b_pool/photo_b@zipper_2018-10-31T00:14:00_osprey1_incr 59726390344 size 59726390344 warning: cannot send 'b_pool/photo_b@zipper_2018-10-31T00:14:00_osprey1_incr': signal received  zfs receive -F osprey_zackup1a/b_pool/photo_b@zipper_2018-10-31T00:14:00_osprey1_incr exited 1: cannot receive incremental stream: out of space 	
+    Traceback (most recent call last):
+      File "/opt/local/Library/Frameworks/Python.framework/Versions/2.7/lib/python2.7/logging/handlers.py", line 877, in emit
+        self.socket.send(msg)
+    error: [Errno 40] Message too long
+    Logged from file zfs-zipper, line 132
+    .3error: zfs send -P -i b_pool/photo_b@zipper_2018-10-23T21:15:51_osprey1_incr b_pool/photo_b@zipper_2018-10-31T00:14:00_osprey1_incr exited 1: incremental	zipper_2018-10-23T21:15:51_osprey1_incr	b_pool/photo_b@zipper_2018-10-31T00:14:00_osprey1_incr	59726390344
+    size	59726390344
+    warning: cannot send 'b_pool/photo_b@zipper_2018-10-31T00:14:00_osprey1_incr': signal received
+
+    zfs receive -F osprey_zackup1a/b_pool/photo_b@zipper_2018-10-31T00:14:00_osprey1_incr exited 1: cannot receive incremental stream: out of space
+     (specify --verboseLevel=error for more details)
 

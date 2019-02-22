@@ -19,9 +19,7 @@
 
 - initializing a zfs pool backup disk
        dd if=/dev/zero of=/dev/XX1 bs=1m count=128
-       sudo zpool create -m /media/backup osprey_backup? /dev/ada?
-       sudo mkdir /media/backup/backups
-   # can also partition in sysinstall to make multiple pools
+       zpool create -O atime=off -O compression=lz4 -O dedup=on -m /media/zackup1 osprey_zackup1a ada0 ada1
 
 - discovering pool status
    sudo zpool status osprey_backup?
@@ -31,9 +29,7 @@
     zpool labelclear /dev/ada?
 
 - create mirrored pool
-  zpool create -m /media/zackup1 osprey_zackup1b mirror /dev/ada? /dev/ada?
-  zfs set compression=on osprey_zackup1b
-  zfs set atime=off osprey_zackup1b
+  zpool create -O atime=off -O compression=lz4 -O dedup=on -m /media/zackup1 osprey_zackup1a disk6 disk7
   zpool list
   zpool status
 

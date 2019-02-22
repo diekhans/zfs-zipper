@@ -1,16 +1,13 @@
 """
 support for tests on ZFS in Mac OS/X virtual devices
 """
-import os, sys, re
+import os
+import re
 from collections import namedtuple
 import plistlib
-from testops import *
+from testops import ensureDir, ensureFileDir, runCmd, runCmdStr
+from testops import zfsPoolImport, zfsPoolExport, zfsPoolCreate, zfsPoolDestroy, zfsFindTestPools, zfsFileSystemCreate
 
-def runCmdPlist(cmd):
-    "returns parsed plist output"
-    return plistlib.readPlistFromString(runCmdStr(cmd))
-
-from testops import *
 def runCmdPlist(cmd):
     "returns parsed plist output"
     return plistlib.readPlistFromString(runCmdStr(cmd))
@@ -33,7 +30,7 @@ def virtualDevListParse(entry):
 def virtualDevList():
     hdiList = runCmdPlist(["hdiutil", "info", "-plist"])
     devs = []
-    for entry in hdiList['images'] :
+    for entry in hdiList['images']:
         devs.append(virtualDevListParse(entry))
     return tuple(devs)
 
@@ -41,6 +38,7 @@ class _ZfsVirtualPool(object):
     """zfs pool in a vnode disk on a file"""
 
     ZfsFs = namedtuple("ZfsFs", ("fileSystemName", "mountPoint"))
+
     def __init__(self, testRootDir, poolName, otherFileSystems=[]):
         self.poolName = poolName
         self.device = None
@@ -48,15 +46,15 @@ class _ZfsVirtualPool(object):
         self.devFile = testRootDir + "/dev/" + poolName + ".dmg"
         self.sizeMb = 64
         # first is main pool fs
-        self.fileSystems = tuple([self.ZfsFs(self.poolName, self.mntDir+"/"+self.poolName)]
-                                 + [self.ZfsFs(fs, self.mntDir+"/"+fs) for fs in otherFileSystems])
+        self.fileSystems = tuple([self.ZfsFs(self.poolName, self.mntDir + "/" + self.poolName)]
+                                 + [self.ZfsFs(fs, self.mntDir + "/" + fs) for fs in otherFileSystems])
 
     def __createVnodeDisk(self):
         ensureFileDir(self.devFile)
         ensureDir(self.mntDir)
         if os.path.exists(self.devFile):
             os.unlink(self.devFile)
-        runCmd(["hdiutil", "create", "-size", str(self.sizeMb)+"m", self.devFile])
+        runCmd(["hdiutil", "create", "-size", str(self.sizeMb) + "m", self.devFile])
         attachPlist = runCmdPlist(["hdiutil", "attach", "-nomount", "-plist", self.devFile])
         self.device = virtualDevListParseDevice(attachPlist)
 
@@ -65,7 +63,7 @@ class _ZfsVirtualPool(object):
             if zfsFs.fileSystemName == fileSystemName:
                 return zfsFs
         raise Exception("can't find filesystem " + fileSystemName)
-    
+
     def setup(self):
         self.__createVnodeDisk()
         zfsPoolCreate(self.fileSystems[0].mountPoint, self.poolName, self.device)
@@ -82,9 +80,9 @@ class _ZfsVirtualPool(object):
 
 def zfsVirtualCreatePool(testRootDir, poolName, otherFileSystems=[]):
     return _ZfsVirtualPool(testRootDir, poolName, otherFileSystems)
-            
+
 def _findTestDevices(testRootDir):
-    return tuple([dev for dev in  virtualDevList() if dev.file.startswith(testRootDir)])
+    return tuple([dev for dev in virtualDevList() if dev.file.startswith(testRootDir)])
 
 def _destroyTestDevices(dev):
     runCmd(["hdiutil", "detach", dev.device])

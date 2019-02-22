@@ -3,7 +3,8 @@ Test of basic ZFS query functions that will only work run on a system with
 multiple ZFS file systems and snapshot.  This may not run everywhere
 """
 
-import sys,  unittest
+import sys
+import unittest
 sys.path.insert(0, "../lib/zfs-zipper")
 from zfszipper import zfs
 
@@ -14,7 +15,7 @@ class ZfsLocalSystemTest(unittest.TestCase):
         cnt = dump.count(substr)
         if cnt < minCount:
             msg = "ZFS dump didn't have at least %d occurrences of >%s<\n" % (minCount, substr)
-            sys.stderr.write(msg+"\n")
+            sys.stderr.write(msg + "\n")
             sys.stderr.write(dump)
             self.fail(msg)
 
@@ -24,7 +25,7 @@ class ZfsLocalSystemTest(unittest.TestCase):
         for snapshot in zfs.listSnapshots(fileSystem.name):
             descs.append("    snapshot: " + " ".join(snapshot))
         return descs
-        
+
     def __zfsLoadPool(self, zfs, pool):
         descs = []
         descs.append("pool: " + str(pool))
@@ -37,7 +38,7 @@ class ZfsLocalSystemTest(unittest.TestCase):
         for pool in zfs.listPools():
             descs.extend(self.__zfsLoadPool(zfs, pool))
         return "\n".join(descs) + "\n"
-            
+
     def testPoolsLoad(self):
         descs = self.__zfsLoad(zfs.Zfs())
         if debug:
@@ -53,4 +54,3 @@ def suite():
 
 if __name__ == '__main__':
     unittest.main()
-

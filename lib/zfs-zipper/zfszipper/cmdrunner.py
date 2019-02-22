@@ -2,7 +2,8 @@
 Object for running commands.
 """
 
-import subprocess, tempfile
+import subprocess
+import tempfile
 import logging
 logger = logging.getLogger()
 
@@ -14,7 +15,7 @@ class ProcessError(Exception):
         self.stderr = stderr
         self.stdout = stdout
         msg = " ".join(self.cmd) + " exited " + str(self.returncode)
-        if self.stderr != None:
+        if self.stderr is not None:
             msg += ": " + self.stderr
         Exception.__init__(self, msg)
 
@@ -24,8 +25,8 @@ class Pipeline2Exception(Exception):
         "either can be null"
         self.except1 = except1
         self.except2 = except2
-        msgs = [str(except1) if except1 != None else "",
-                str(except2) if except1 != None else ""]
+        msgs = [str(except1) if except1 is not None else "",
+                str(except2) if except1 is not None else ""]
         Exception.__init__(self, "\n".join(msgs))
 
 class AsyncProc(object):
@@ -50,7 +51,7 @@ class AsyncProc(object):
             return (stderr, ex)
         finally:
             self.stderrFh.close()
-        
+
 class CmdRunner(object):
     def __logCmd(self, cmd):
         logger.debug("run: " + " ".join(cmd))
@@ -68,7 +69,7 @@ class CmdRunner(object):
         self.__logCmd(cmd)
         try:
             lines = self.__run(cmd).splitlines()
-        except Exception, ex:
+        except Exception:
             logger.exception("command failed:" + " " .join(cmd))
             raise
         return lines
@@ -87,6 +88,6 @@ class CmdRunner(object):
         p1.proc.stdout.close()  # Allow process to receive a SIGPIPE if other process exits
         stderr1, ex1 = p1.waitNoThrow()
         stderr2, ex2 = p2.waitNoThrow()
-        if (ex1 != None) or (ex2 != None):
+        if (ex1 is not None) or (ex2 is not None):
             raise Pipeline2Exception(ex1, ex2)
         return (stderr1, stderr2)

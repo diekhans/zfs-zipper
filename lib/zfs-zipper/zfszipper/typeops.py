@@ -5,7 +5,7 @@ import time
 
 def asNameStrOrNone(obj):
     "return obj if it's a string, name field if exists or none if obj is none"
-    if obj == None:
+    if obj is None:
         return None
     elif isinstance(obj, str):
         return obj
@@ -14,7 +14,7 @@ def asNameStrOrNone(obj):
 
 def asNameOrStr(obj):
     "return obj if obj is a string, or obj.name, error if none"
-    if obj == None:
+    if obj is None:
         raise ValueError("None not allowed")
     elif isinstance(obj, str):
         return obj
@@ -23,7 +23,7 @@ def asNameOrStr(obj):
 
 def asStrOrEmpty(s):
     "return str(s) if it's not None, else empty"
-    return str(s) if s != None else ""
+    return str(s) if s is not None else ""
 
 def splitLinesToRows(lines):
     "split newline separate lines into tuple of lines"
@@ -36,4 +36,3 @@ def splitTabLinesToRows(lines):
 
 def currentGmtTimeStr():
     return time.strftime("%Y-%m-%dT%T", time.gmtime())
-

@@ -1,7 +1,8 @@
 """
 Configuration objects.
 """
-import os, time
+import os
+import time
 from collections import OrderedDict
 from zfszipper import loggingops
 
@@ -21,9 +22,9 @@ class BackupPoolConf(object):
     def determineBackupFileSystemName(self, fileSystem):
         """determine ZFS fileSystemName used to backup fileSystem (file systems can be name or zfs.FileSystem)"""
         return os.path.normpath(self.name + "/" + (fileSystem if isinstance(fileSystem, str) else fileSystem.name))
-        
+
 class BackupSetConf(object):
-    """Configuration of a backup set.  A backup set consists of a set of file systems 
+    """Configuration of a backup set.  A backup set consists of a set of file systems
     and a set of rotating backup pools use to backup those file systems.
     """
     def __init__(self, name, sourceFileSystemSpecs, backupPoolConfs):
@@ -51,15 +52,15 @@ class BackupSetConf(object):
             seen.add(fs.name)
             confs.append(fs)
         return tuple(confs)
-        
+
     def __mkSourceFileSystemConf(self, fsSpec):
         if isinstance(fsSpec, str):
             return SourceFileSystemConf(fsSpec)
         elif isinstance(fsSpec, SourceFileSystemConf):
             return fsSpec
         else:
-            raise BackupConfigError("source file system specification is not an instance of SourceFileSystemConf or string: " + str(type(sourceFileSystem)))
-        
+            raise BackupConfigError("source file system specification is not an instance of SourceFileSystemConf or string: " + str(type(SourceFileSystemConf)))
+
     def __addBackupPoolConf(self, backupPoolConf):
         if not isinstance(backupPoolConf, BackupPoolConf):
             raise BackupConfigError("back pool is not an instance of BackPoolConf: " + str(type(backupPoolConf)))
@@ -69,16 +70,16 @@ class BackupSetConf(object):
 
     def getBackupPoolConf(self, backupPoolName):
         backupPoolConf = self.byBackupPoolName.get(backupPoolName)
-        if backupPoolName == None:
+        if backupPoolName is None:
             raise BackupConfigError("backup pool %s not part of backup set %s" % (backupPoolName, self.name))
         return backupPoolConf
 
     def getSourceFileSystem(self, sourceFileSystemName):
         "find source file system"
-    
+
 class BackupConf(object):
     "Configuration of backups"
-    def __init__(self,  backupSets,  lockFile="/var/run/zfszipper.lock", recordFilePattern=None,
+    def __init__(self, backupSets, lockFile="/var/run/zfszipper.lock", recordFilePattern=None,
                  syslogFacility=None, syslogLevel="info"):
         """
         lockFile - lock file to use, defaults to /var/run/zfszipper.lock
@@ -88,8 +89,8 @@ class BackupConf(object):
         """
         self.backupSets = backupSets
         self.lockFile = lockFile
-        self.recordFile = time.strftime(recordFilePattern, time.gmtime()) if recordFilePattern != None else None
-        self.syslogFacility = loggingops.parseFacility(syslogFacility) if syslogFacility != None else None
+        self.recordFile = time.strftime(recordFilePattern, time.gmtime()) if recordFilePattern is not None else None
+        self.syslogFacility = loggingops.parseFacility(syslogFacility) if syslogFacility is not None else None
         self.syslogLevel = loggingops.parseLevel(syslogLevel)
 
     def getBackupSet(self, backupSetName):
