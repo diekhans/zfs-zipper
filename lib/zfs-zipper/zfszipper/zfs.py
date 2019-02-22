@@ -17,7 +17,7 @@ class Zfs(object):
         return [ZfsPool(name, getZfsPoolHealth(health))
                 for name, health in self.cmdRunner.callTabSplit(["zpool", "list", "-H", "-o", "name,health"])]
 
-    def __listExportedParsePool(self, poolName, lineIter):
+    def _listExportedParsePool(self, poolName, lineIter):
         "parse next pool out of lines from zpool import"
         for line in lineIter:
             m = re.match("^  state: (.*)$", line)
@@ -32,7 +32,7 @@ class Zfs(object):
         for line in lineIter:
             m = re.match("^   pool: (.*)$", line)
             if m is not None:
-                exported.append(self.__listExportedParsePool(m.group(1), lineIter))
+                exported.append(self._listExportedParsePool(m.group(1), lineIter))
         return exported
 
     def havePool(self, poolName):
@@ -118,13 +118,13 @@ class ZfsFileSystem(object):
         self.name = name
         # empty becomes None:
         self.mountpoint = mountpoint if (mountpoint is None) or len(mountpoint) > 0 else None
-        self.mounted = self.__parseMounted(mounted)
+        self.mounted = self._parseMounted(mounted)
 
     def __str__(self):
         return "name=" + self.name + " mountpoint=" + str(self.mountpoint) + " mounted=" + str(self.mounted)
 
     @staticmethod
-    def __parseMounted(mounted):
+    def _parseMounted(mounted):
         if isinstance(mounted, bool):
             return mounted
         elif mounted == 'yes':

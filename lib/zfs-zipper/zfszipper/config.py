@@ -32,28 +32,28 @@ class BackupSetConf(object):
         if name.find('_') >= 0:  # used as a separator in snapshot names
             raise BackupConfigError("backup set name may not contain `_': " + name)
         self.name = name
-        self.sourceFileSystemConfs = self.__buildSourceFileSystemConfs(sourceFileSystemSpecs)
+        self.sourceFileSystemConfs = self._buildSourceFileSystemConfs(sourceFileSystemSpecs)
         self.backupPoolConfs = tuple(backupPoolConfs)
         self.byBackupPoolName = OrderedDict()
         for backupPoolConf in self.backupPoolConfs:
-            self.__addBackupPoolConf(backupPoolConf)
+            self._addBackupPoolConf(backupPoolConf)
 
     @property
     def backupPoolNames(self):
         return list(self.byBackupPoolName.iterkeys())
 
-    def __buildSourceFileSystemConfs(self, sourceFileSystemSpecs):
+    def _buildSourceFileSystemConfs(self, sourceFileSystemSpecs):
         seen = set()
         confs = []
         for fsSpec in sourceFileSystemSpecs:
-            fs = self.__mkSourceFileSystemConf(fsSpec)  # name will be normalized, need before seen check
+            fs = self._mkSourceFileSystemConf(fsSpec)  # name will be normalized, need before seen check
             if fs.name in seen:
                 raise BackupConfigError("duplicate file system in BackupSetConf: " + fs.name)
             seen.add(fs.name)
             confs.append(fs)
         return tuple(confs)
 
-    def __mkSourceFileSystemConf(self, fsSpec):
+    def _mkSourceFileSystemConf(self, fsSpec):
         if isinstance(fsSpec, str):
             return SourceFileSystemConf(fsSpec)
         elif isinstance(fsSpec, SourceFileSystemConf):
@@ -61,7 +61,7 @@ class BackupSetConf(object):
         else:
             raise BackupConfigError("source file system specification is not an instance of SourceFileSystemConf or string: " + str(type(SourceFileSystemConf)))
 
-    def __addBackupPoolConf(self, backupPoolConf):
+    def _addBackupPoolConf(self, backupPoolConf):
         if not isinstance(backupPoolConf, BackupPoolConf):
             raise BackupConfigError("back pool is not an instance of BackPoolConf: " + str(type(backupPoolConf)))
         if backupPoolConf.name in self.byBackupPoolName:

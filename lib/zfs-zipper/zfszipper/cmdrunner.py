@@ -53,10 +53,10 @@ class AsyncProc(object):
             self.stderrFh.close()
 
 class CmdRunner(object):
-    def __logCmd(self, cmd):
+    def _logCmd(self, cmd):
         logger.debug("run: " + " ".join(cmd))
 
-    def __run(self, cmd):
+    def _run(self, cmd):
         # check_output doesn't return stderr in message
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, stderr = process.communicate()
@@ -66,9 +66,9 @@ class CmdRunner(object):
 
     def call(self, cmd):
         "return list of output lines"
-        self.__logCmd(cmd)
+        self._logCmd(cmd)
         try:
-            lines = self.__run(cmd).splitlines()
+            lines = self._run(cmd).splitlines()
         except Exception:
             logger.exception("command failed:" + " " .join(cmd))
             raise
@@ -82,7 +82,7 @@ class CmdRunner(object):
     def pipeline2(self, cmd1, cmd2):
         """pipeline two processes, capturing stderr, either throw in exception or
         returned as (stderr1, strderr2)"""
-        self.__logCmd(cmd1 + ["|"] + cmd2)
+        self._logCmd(cmd1 + ["|"] + cmd2)
         p1 = AsyncProc(cmd1, stdout=subprocess.PIPE)
         p2 = AsyncProc(cmd2, stdin=p1.proc.stdout)
         p1.proc.stdout.close()  # Allow process to receive a SIGPIPE if other process exits
