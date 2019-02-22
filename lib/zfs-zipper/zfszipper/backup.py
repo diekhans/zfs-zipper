@@ -4,6 +4,7 @@ Classes to support zfs-zipper.  Some of these are configuration objects.
 import os
 import re
 import logging
+import time
 from enum import Enum
 from .zfs import ZfsPoolHealth
 from .typeops import asNameStrOrNone, asStrOrEmpty, currentGmtTimeStr
@@ -108,6 +109,10 @@ class BackupSnapshot(object):
     @staticmethod
     def createCurrent(backupsetName, backupType, backupPool=None, fileSystem=None):
         "create using current timestamp.  The backupType argument can be Backtype or string."
+        # Ouch, we have the problem that the test cases can so quickly that
+        # the one second resoltion of the time can result in snampshot name
+        # collision. to addess, with just sleep to force them to be unique.
+        time.sleep(2)
         return BackupSnapshot(timestamp=currentGmtTimeStrFunc(), backupsetName=backupsetName, backupType=backupType, fileSystemName=asNameStrOrNone(fileSystem))
 
     def __init__(self, fileSystemName=None, timestamp=None, backupsetName=None, backupType=None):
