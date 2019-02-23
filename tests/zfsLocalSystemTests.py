@@ -14,7 +14,7 @@ class ZfsLocalSystemTest(unittest.TestCase):
     def assertStrCountMin(self, dump, substr, minCount):
         cnt = dump.count(substr)
         if cnt < minCount:
-            msg = "ZFS dump didn't have at least %d occurrences of >%s<\n" % (minCount, substr)
+            msg = "ZFS dump didn't have at least {} occurrences of >{}<\n".format((minCount, substr))
             sys.stderr.write(msg + "\n")
             sys.stderr.write(dump)
             self.fail(msg)

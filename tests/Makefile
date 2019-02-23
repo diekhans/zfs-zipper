@@ -6,7 +6,7 @@ test: backupLibTests vtest
 backupLibTests:
 	 ${PYTHON} backupLibTests.py
 
-# slow and requires local ZFS
+# requires local ZFS
 ltest: zfsLocalSystemTests
 
 zfsLocalSystemTests:
@@ -20,4 +20,5 @@ vtestclean:
 	 sudo ${PYTHON} virtualDiskTests.py clean
 
 clean: vtestclean
+	rm -f ${etcDir}/zfs-zipper.conf.py
 

@@ -128,7 +128,7 @@ config = BackupConf([backupSetConf],
         except Exception as ex:
             expectMsg = "zfszipper_test_source to zfszipper_test_backupA/zfszipper_test_source: full backup snapshots exists and overwrite not specified"
             if str(ex).find(expectMsg) < 0:
-                raise Exception("expected error with message containing \"{}\", got \"{}\"".format(expectMsg, str(ex)))
+                raise Exception("expected error with message containing '{}', got '{}'".format(expectMsg, str(ex)))
         if ok:
             raise Exception("Excepted failure, didn't get exception")
 
@@ -151,15 +151,14 @@ config = BackupConf([backupSetConf],
 
 
 def parseCommand():
-    usage = """%prog [options] test|clean
-    runs tests or do a cleanup
+    usage = """runs tests or do a cleanup
     """
     parser = argparse.ArgumentParser(description=usage)
     parser.add_argument("action",
                         help="""test to run tests, or clean to cleanup failed tests""")
     args = parser.parse_args()
     if args.action not in ("test", "clean"):
-        parser.error("expected on of test or clean, got %s" % args.action)
+        parser.error("expected on of test or clean, got {}".format(args.action))
     if os.geteuid() != 0:
         parser.error("must be run as root")
     return args
