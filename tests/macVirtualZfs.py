@@ -10,7 +10,7 @@ from testops import zfsPoolImport, zfsPoolExport, zfsPoolCreate, zfsPoolDestroy,
 
 def runCmdPlist(cmd):
     "returns parsed plist output"
-    return plistlib.readPlistFromString(runCmdStr(cmd))
+    return plistlib.readPlistFromBytes(runCmdStr(cmd, encoding=None))
 
 VirtDevice = namedtuple("VirtDevice", ("device", "file"))
 

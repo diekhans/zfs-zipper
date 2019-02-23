@@ -42,7 +42,7 @@ class ZfsLocalSystemTest(unittest.TestCase):
     def testPoolsLoad(self):
         descs = self.__zfsLoad(zfs.Zfs())
         if debug:
-            print descs
+            print(descs, file=sys.stderr)
         self.assertStrCountMin(descs, "pool", 2)
         self.assertStrCountMin(descs, "filesystem", 5)
         self.assertStrCountMin(descs, "snapshot", 10)

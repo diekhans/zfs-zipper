@@ -7,15 +7,15 @@ import subprocess
 import errno
 from glob import glob
 from collections import namedtuple
-from zfszipper.cmdrunner import ProcessError
+from zfszipper.cmdrunner import ProcessError, stdflush
 
 def ensureDir(dir):
     """Ensure that a directory exists, creating it (and parents) if needed."""
     try:
         os.makedirs(dir)
-    except OSError, e:
-        if e.errno != errno.EEXIST:
-            raise e
+    except OSError as ex:
+        if ex.errno != errno.EEXIST:
+            raise
 
 def ensureFileDir(fname):
     """Ensure that the directory for a file exists, creating it (and parents) if needed.
@@ -31,25 +31,21 @@ def deleteFiles(globPat):
     for f in glob(globPat):
         os.unlink(f)
 
-def stdflush():
-    sys.stdout.flush()
-    sys.stderr.flush()
-
-def runCmdStr(cmd):
+def runCmdStr(cmd, encoding="utf-8"):
     sys.stderr.write("run: " + " ".join(cmd) + "\n")
     stdflush()
-    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding=encoding)
     stdout, stderr = process.communicate()
     stdflush()
     if process.returncode != 0:
         raise ProcessError(process.returncode, cmd, stderr)
     return stdout
 
-def runCmd(cmd):
-    return runCmdStr(cmd).splitlines()
+def runCmd(cmd, encoding="utf-8"):
+    return runCmdStr(cmd, encoding).splitlines()
 
-def runCmdTabSplit(cmd):
-    return [l.split("\t") for l in runCmd(cmd)]
+def runCmdTabSplit(cmd, encoding="utf-8"):
+    return [l.split("\t") for l in runCmd(cmd, encoding)]
 
 CmdResults = namedtuple("CmdResults", ("returncode", "stdout", "stderr"))
 def callCmdAllResults(cmd):

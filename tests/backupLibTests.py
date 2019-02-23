@@ -99,11 +99,11 @@ class BackupSnapshotTests(unittest.TestCase):
 
     def testCurrentFull(self):
         ss = BackupSnapshot.createCurrent("someset", BackupType.full, "somepool", fakeZfsFileSystem("somefs", "somepool"))
-        self.assertRegexpMatches(str(ss), "^somefs@zipper_[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}_someset_full$")
+        self.assertRegex(str(ss), "^somefs@zipper_[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}_someset_full$")
 
     def testCurrentIncr(self):
         ss = BackupSnapshot.createCurrent("someset", BackupType.incr)
-        self.assertRegexpMatches(str(ss), "^zipper_[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}_someset_incr$")
+        self.assertRegex(str(ss), "^zipper_[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}_someset_incr$")
 
     def testFromSnapshot(self):
         ss = BackupSnapshot.createFromSnapshotName(self.fullTestName)
@@ -203,9 +203,9 @@ class BackuperTests(unittest.TestCase):
         fsBackup.backup(recorder, backupType)
 
     def __assertActions(self, zfs, expected):
-        for i in xrange(min(len(zfs.actions), len(expected))):
+        for i in range(min(len(zfs.actions), len(expected))):
             self.assertEqual(zfs.actions[i], expected[i])
-        self.assertEquals(len(zfs.actions), len(expected))
+        self.assertEqual(len(zfs.actions), len(expected))
 
     def __assertRecorded(self, recorder, expected):
         "expected should not include header line"
@@ -213,9 +213,9 @@ class BackuperTests(unittest.TestCase):
         expectedHdr = [header] + list(expected)
 
         lines = recorder.readLines()
-        for i in xrange(min(len(lines), len(expectedHdr))):
-            self.assertEquals(lines[i], expectedHdr[i])
-        self.assertEquals(len(lines), len(expectedHdr))
+        for i in range(min(len(lines), len(expectedHdr))):
+            self.assertEqual(lines[i], expectedHdr[i])
+        self.assertEqual(len(lines), len(expectedHdr))
 
     def testInitialFull(self):
         GmtTimeFaker.setTime("2001-01-01")
@@ -278,7 +278,7 @@ class BackuperTests(unittest.TestCase):
         zfs = self.__mkBackupPool1Zfs(self.backupPool1Fs1Snapshots[0:3],
                                       self.backupPool1Fs2Snapshots[0:3])
         recorder = TestBackupRecorder(self.id())
-        with self.assertRaisesRegexp(BackupError, "^backup of srcPool1 to backupPool1/srcPool1: full backup snapshots exists and overwrite not specified$"):
+        with self.assertRaisesRegex(BackupError, "^backup of srcPool1 to backupPool1/srcPool1: full backup snapshots exists and overwrite not specified$"):
             self.__twoFsBackup(zfs, recorder, BackupType.full)
         self.__assertRecorded(recorder, ['1962-02-01T00:00:00\ttestBackupSet\tbackupPool1\terror\tsrcPool1\t\t\tBackupError\tbackup of srcPool1 to backupPool1/srcPool1: full backup snapshots exists and overwrite not specified\t'])
         del recorder
@@ -367,7 +367,7 @@ class BackuperTests(unittest.TestCase):
                               (("full", "srcPool1/srcPool1Fs2@zipper__testBackupSet_full", "50000"), ("size", "50000"))))
         recorder = TestBackupRecorder(self.id())
 
-        with self.assertRaisesRegexp(BackupError, "^incremental backup of srcPool1 to backupPool2/srcPool1: no common full backup snapshot, backup pool backupPool2 already has the file system, must specify allowOverwrite to create a new full backup$"):
+        with self.assertRaisesRegex(BackupError, "^incremental backup of srcPool1 to backupPool2/srcPool1: no common full backup snapshot, backup pool backupPool2 already has the file system, must specify allowOverwrite to create a new full backup$"):
             self.__twoFsBackup(zfs, recorder, BackupType.incr, backupPool=self.backupPool2)
 
         self.__twoFsBackup(zfs, recorder, BackupType.incr, backupPool=self.backupPool2, allowOverwrite=True)

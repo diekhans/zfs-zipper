@@ -125,10 +125,10 @@ config = BackupConf([backupSetConf],
         try:
             self._runZfsZipper(configPy, full=True, allowOverwrite=False)
             ok = True
-        except Exception, ex:
+        except Exception as ex:
             expectMsg = "zfszipper_test_source to zfszipper_test_backupA/zfszipper_test_source: full backup snapshots exists and overwrite not specified"
-            if ex.message.find(expectMsg) < 0:
-                raise Exception("expected error with message containing \"%s\", got \"%s\"" % (expectMsg, str(ex)))
+            if str(ex).find(expectMsg) < 0:
+                raise Exception("expected error with message containing \"{}\", got \"{}\"".format(expectMsg, str(ex)))
         if ok:
             raise Exception("Excepted failure, didn't get exception")
 
@@ -142,7 +142,7 @@ config = BackupConf([backupSetConf],
         # FIXME:  want to test auto-import, however if export test_backup, then import
         # with
         #   sudo zpool import -d /var/tmp/zfszipper_tests/dev/
-        #   gets error: zfszipper_test_backup.dmg  UNAVAIL  cannot open
+        #   gets error: zfszipper_test_backupA.dmg  UNAVAIL  cannot open
         # backupPool.exportPool()
         self._test1Incr1(sourcePool, backupPool, configPy)
         self._test1Incr2(sourcePool, backupPool, configPy)
