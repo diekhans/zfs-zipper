@@ -31,10 +31,16 @@ def deleteFiles(globPat):
     for f in glob(globPat):
         os.unlink(f)
 
+def stdflush():
+    sys.stdout.flush()
+    sys.stderr.flush()
+
 def runCmdStr(cmd):
     sys.stderr.write("run: " + " ".join(cmd) + "\n")
+    stdflush()
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout, stderr = process.communicate()
+    stdflush()
     if process.returncode != 0:
         raise ProcessError(process.returncode, cmd, stderr)
     return stdout

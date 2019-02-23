@@ -1,4 +1,4 @@
-- eSATA disk protocols
+* eSATA disk protocols on FreeBSD
     # to attach external disk after boot:
             sudo camcontrol rescan all
             sudo camcontrol devlist
@@ -13,27 +13,27 @@
     # to enable standby:
        sudo camcontrol standby ?:0:0 -t 60
 
-- ZFS documentations
+* ZFS documentations
    ZFS Cheatsheet  http://www.datadisk.co.uk/html_docs/sun/sun_zfs_cs.htm
 
 
-- initializing a zfs pool backup disk
-       dd if=/dev/zero of=/dev/XX1 bs=1m count=128
-       zpool create -O atime=off -O compression=lz4 -O dedup=on -m /media/zackup1 osprey_zackup1a ada0 ada1
+* initializing a zfs pool backup disk
+     dd if=/dev/zero of=/dev/XX1 bs=1m count=128
+     zpool create -O atime=off -O compression=lz4 -O dedup=on -m /media/zackup1 osprey_zackup1a ada0 ada1
 
-- discovering pool status
+* discovering pool status
    sudo zpool status osprey_backup?
    sudo zpool list osprey_backup?
 
-- clear labels on disk so it can be reused in a new pool
+* clear labels on disk so it can be reused in a new pool
     zpool labelclear /dev/ada?
 
-- create mirrored pool
+* create mirrored pool
   zpool create -O atime=off -O compression=lz4 -O dedup=on -m /media/zackup1 osprey_zackup1a disk6 disk7
   zpool list
   zpool status
 
-- pool I/O is currently suspended error
+* pool I/O is currently suspended error
     zpool clear $pool
   # if that doesn't work
     zpool clear -nFX $pool
@@ -42,26 +42,33 @@
     zpool import $pool
 
 
-- listing snapshots
+* listing snapshots
    zfs list -r -t snapshot <dataset>
 
-- listing file systems
+* listing file systems
    zfs list -r -t filesystem <pool>
 
-- listing properties
+* listing properties
   zpool get -o all all <pool>
   zfs get -o all all <filesystem>
 
-- list filesystems
+* list filesystems
   zfs list
 
-- bring online
+* bring online
    sudo zpool import osprey_backup?
    sudo zfs mount osprey_backup?
 
-- take offline
+* take offline
    sudo zfs unmount osprey_backup?
    sudo zpool export osprey_backup?
 
-- first backup
+* change mount point
+
+* rename a pool
+zpool export osprey_zackup1a
+zpool import osprey_zackup1a osprey_zackup1a_no_space
+zpool status -v
+
+* first backup
     (sudo /opt/sbin/zfs-zipper --full /opt/etc/zfs-zipper.conf.py 2>&1 | mail -s "ZFS Zipper daily backup: $(hostname)" root)</dev/null &

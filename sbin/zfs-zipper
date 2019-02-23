@@ -17,6 +17,9 @@ created.  This serves as a baseline for the incremental backups.  If the
 source full pool is to be destroyed, a new full backup for the target pool
 must first be made. All that matters is the latest full is on both the source
 FS and the BackupPool FS.
+
+The full backup is just used as a starting poijnt, this allows omitting
+snapshopts when starting a new backup zpool.
 """
 
 import os, sys, re, subprocess, time, argparse, fcntl, logging
@@ -42,8 +45,7 @@ def evalConfigFile(configPyFile):
     return config
 
 def parseCommand():
-    usage="""%prog [options] configPy
-    Run a backup from ZFS source pools to back source pools.
+    usage= """Run a backup from ZFS source pools to back source pools.
     """
     parser = argparse.ArgumentParser(description=usage)
     parser.add_argument("configPy", default=defaultConfig, nargs='?',
@@ -53,6 +55,9 @@ def parseCommand():
                         help="""If specified, do a full backup.  If backup pool has been used before, --allowOverwrite must be specified""")
     parser.add_argument("--allowOverwrite", dest="allowOverwrite", action="store_true", default=False,
                         help="""If specified, allow overwriting existing file systems in the backup pool.  This must be specified when overwriting an existing backup with a new full backup.""")
+    parser.add_argument("--full-base", dest="fullbase",
+                        help="""If specified, this is the existing full snapshot on the source file system where the backup should begin.  This maybe repeated and would often be used with --sourceFileSystem.  If a source file system is found
+                        that isn't in the list, and error is generated at the end.  This is used to start a new backup volumn that includes existing snapshots rather than starting with a new full. """)
     parser.add_argument("--backupSet", metavar="name", dest="backupSetName",
                         help="""Backup only this set.  If not specified, all sets in config file are backed up.""")
     parser.add_argument("--sourceFileSystem", metavar="name", dest="sourceFileSystemNames", action="append",
@@ -93,28 +98,28 @@ class Backup(object):
         except IOError, ex:
             raise BackupError("can't lock %s, is another backup running?" % self.config.lockFile, ex)
 
-    def __backupSomeFileSystems(self, backupper, backupSetConf, sourceFileSystemNames):
+    def _backupSomeFileSystems(self, backupper, backupSetConf, sourceFileSystemNames):
         for sourceFileSystemName in sourceFileSystemNames:
             backupper.backupOne(self.backupType, backupSetConf, backupSetConf.getFileSystem(sourceFileSystemName))
 
-    def __backupOneSet(self, recorder, backupSetConf, sourcePoolName=None, sourceFileSystemNames=None):
+    def _backupOneSet(self, recorder, backupSetConf, sourcePoolName=None, sourceFileSystemNames=None):
         backupper = BackupSetBackup(self.zfs, recorder, backupSetConf, self.allowOverwrite)
         if sourceFileSystemNames != None:
-            self.__backupSomeFileSystems(backupper, backupSetConf, sourceFileSystems)
+            self._backupSomeFileSystems(backupper, backupSetConf, sourceFileSystems)
         else:
             backupper.backupAll(self.backupType)
 
-    def __backupAllSets(self, recorder):
+    def _backupAllSets(self, recorder):
         for backupSetConf in self.config.backupSets:
-            self.__backupOneSet(recorder, backupSetConf)
+            self._backupOneSet(recorder, backupSetConf)
 
     def runBackups(self):
         self.__obtainLock()
         recorder = BackupRecorder(self.config.recordFile, sys.stdout)
         if self.backupSetName != None:
-            self.__backupOneSet(recorder, self.config.getBackupSet(self.backupSetName), self.sourceFileSystemNames)
+            self._backupOneSet(recorder, self.config.getBackupSet(self.backupSetName), self.sourceFileSystemNames)
         else:
-            self.__backupAllSets(recorder)
+            self._backupAllSets(recorder)
 
 args = parseCommand()
 if args.verboseLevel != None:

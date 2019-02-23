@@ -109,11 +109,12 @@ class BackupSnapshot(object):
     @staticmethod
     def createCurrent(backupsetName, backupType, backupPool=None, fileSystem=None):
         "create using current timestamp.  The backupType argument can be Backtype or string."
-        # Ouch, we have the problem that the test cases can so quickly that
+        # Ouch, had the problem that the test cases ran so quickly that
         # the one second resoltion of the time can result in snampshot name
         # collision. to addess, with just sleep to force them to be unique.
         time.sleep(2)
-        return BackupSnapshot(timestamp=currentGmtTimeStrFunc(), backupsetName=backupsetName, backupType=backupType, fileSystemName=asNameStrOrNone(fileSystem))
+        return BackupSnapshot(timestamp=currentGmtTimeStrFunc(), backupsetName=backupsetName, backupType=backupType,
+                              fileSystemName=asNameStrOrNone(fileSystem))
 
     def __init__(self, fileSystemName=None, timestamp=None, backupsetName=None, backupType=None):
         "use create methods, don't call this.  The backupType argument can be Backtype or string."
