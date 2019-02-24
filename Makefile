@@ -1,4 +1,5 @@
-PYTHON = python
+# -*- mode: makefile-gmake -*-
+PYTHON = python3
 
 libPyBaseFiles = __init__.py zfs.py config.py cmdrunner.py backup.py loggingops.py typeops.py
 libPyRelFiles = ${libPyBaseFiles:%=zfs-zipper/zfszipper/%}
@@ -68,30 +69,26 @@ ${periodicDir}/%: etc/periodic/%
 %.pyc: %.py
 	PYTHONPATH=lib/zfs-zipper ${PYTHON} -B -c 'import compileall;compileall.compile_file("$<")'
 
-lint:
-	${PYTHON} -m flake8 
-
-test: backupLibTests
-
-backupLibTests:
-	(cd tests && ${PYTHON} backupLibTests.py)
-
-# slow and requires local ZFS
-ltest: zfsLocalSystemTests
-
-zfsLocalSystemTests:
-	(cd tests && ${PYTHON} zfsLocalSystemTests.py)
-
-# virtual disk test must be run as root
-vtest:
-	(cd tests && ${PYTHON} virtualDiskTests.py test)
-
-vtestclean:
-	(cd tests && ${PYTHON} virtualDiskTests.py clean)
-
 clean:
 	rm -f ${libPycSrcFiles}
+	cd tests && ${MAKE} clean
+
+lint:
+	${PYTHON} -m flake8 sbin/zfs-zipper lib tests
 
 uninstall:
 	rm -f ${installedFiles}
 	rmdir ${uninstallDirs}
+
+test:
+	cd tests && ${MAK} test
+
+ltest:
+	cd test && {MAKE} ltest
+
+vtest:
+	(cd tests && ${PYTHON} vtest)
+
+vtestclean:
+	(cd tests && ${PYTHON} vtestclean)
+

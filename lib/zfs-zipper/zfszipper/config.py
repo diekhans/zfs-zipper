@@ -19,6 +19,9 @@ class BackupPoolConf(object):
     def __init__(self, name):
         self.name = name
 
+    def __str__(self):
+        return self.name
+
     def determineBackupFileSystemName(self, fileSystem):
         """determine ZFS fileSystemName used to backup fileSystem (file systems can be name or zfs.FileSystem)"""
         return os.path.normpath(self.name + "/" + (fileSystem if isinstance(fileSystem, str) else fileSystem.name))
@@ -38,9 +41,12 @@ class BackupSetConf(object):
         for backupPoolConf in self.backupPoolConfs:
             self._addBackupPoolConf(backupPoolConf)
 
+    def __str__(self):
+        return self.name
+
     @property
     def backupPoolNames(self):
-        return list(self.byBackupPoolName.iterkeys())
+        return list(self.byBackupPoolName.keys())
 
     def _buildSourceFileSystemConfs(self, sourceFileSystemSpecs):
         seen = set()
@@ -71,11 +77,22 @@ class BackupSetConf(object):
     def getBackupPoolConf(self, backupPoolName):
         backupPoolConf = self.byBackupPoolName.get(backupPoolName)
         if backupPoolName is None:
-            raise BackupConfigError("backup pool %s not part of backup set %s" % (backupPoolName, self.name))
+            raise BackupConfigError("backup pool {} not part of backup set {}".format(backupPoolName, self.name))
         return backupPoolConf
 
+    def findSourceFileSystem(self, sourceFileSystemName):
+        "find source file system, or None"
+        for fs in self.sourceFileSystemConfs:
+            if fs.name == sourceFileSystemName:
+                return fs
+        return None
+
     def getSourceFileSystem(self, sourceFileSystemName):
-        "find source file system"
+        "get source file system, or error"
+        fs = self.findSourceFileSystem(sourceFileSystemName)
+        if fs is None:
+            raise BackupConfigError("can't find source file system: {} in BackupSet".format(sourceFileSystemName. self.name))
+        return fs
 
 class BackupConf(object):
     "Configuration of backups"
@@ -98,3 +115,12 @@ class BackupConf(object):
             if backupSet.name == backupSetName:
                 return backupSet
         raise BackupSetConf("unknown backup set: " + backupSetName)
+
+    def findSourceFileSystemBackupSets(self, sourceFileSystemName):
+        """return list of backupSets containing source file system or empty list"""
+        backupSets = []
+        for backupSet in self.backupSets:
+            fs = backupSets.findSourceFileSystem(sourceFileSystemName)
+            if fs is not None:
+                backupSets.append(fs)
+        return backupSets

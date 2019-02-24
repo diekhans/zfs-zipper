@@ -54,6 +54,8 @@
 
 * list filesystems
   zfs list
+* list snapshots
+zfs list -r -t snapshot zfszipper_test_source
 
 * bring online
    sudo zpool import osprey_backup?

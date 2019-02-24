@@ -1,20 +1,24 @@
-- Ideas to move files and snapshots from one pool to another
+* Ideas to move files and snapshots from one pool to another
    https://docs.oracle.com/cd/E18752_01/html/819-5461/gbchx.html#gfwqb
 
+* What if a there is a crash while copying a snapshot?  Is it in a partial state.  
+Probably should do a tmpname on snapshop
 
-- change log to get snap shot sizes from zfs list -t snap
-- fix problem with auto import tests and mac virtual box
+* get 
+
+* change log to get snap shot sizes from zfs list -t snap
+* fix problem with auto import tests and mac virtual tests
   tests/virtualDiskTests.py
         # FIXME:  want to test auto-import, however if export test_backup, then import
         # with
         #   sudo zpool import -d /var/tmp/zfszipper_tests/dev/
         #   gets error: zfszipper_test_backup.dmg  UNAVAIL  cannot open
 
-- initialize new zpool, which means creating parent file systems if they don't exist.
+* initialize new zpool, which means creating parent file systems if they don't exist.
 
-- mbuffer in pipe is suppose to really speed up zfs send/recieve
+* mbuffer in pipe is suppose to really speed up zfs send/recieve
 
-- running out of diskspace on backup media screws logging up:
+* running out of diskspace on backup media screws logging up:
     time	backupSet	backupPool	action	src1Snap	src2Snap	backupSnap	size	exception	info
     2019-02-19T20:13:23	osprey1	osprey_zackup1a	incr	a_pool/markd_a@zipper_2019-02-14T02:07:06_osprey1_incr	a_pool/markd_a@zipper_2019-02-19T20:13:09_osprey1_incr	osprey_zackup1a/a_pool/markd_a@zipper_2019-02-19T20:13:09_osprey1_incr	a_pool/markd_a@zipper_2019-02-19T20:13:09_osprey1_incr		
     2019-02-19T20:13:27	osprey1	osprey_zackup1a	incr	a_pool/osprey@zipper_2019-02-14T02:07:37_osprey1_incr	a_pool/osprey@zipper_2019-02-19T20:13:26_osprey1_incr	osprey_zackup1a/a_pool/osprey@zipper_2019-02-19T20:13:26_osprey1_incr	a_pool/osprey@zipper_2019-02-19T20:13:26_osprey1_incr		
@@ -32,3 +36,13 @@
     zfs receive -F osprey_zackup1a/b_pool/photo_b@zipper_2018-10-31T00:14:00_osprey1_incr exited 1: cannot receive incremental stream: out of space
      (specify --verboseLevel=error for more details)
 
+* Maybe switch to using one of the python ZFS APIs:
+https://pypi.org/project/libzfs/
+https://pypi.org/project/weir/
+        
+
+* want to test auto-import
+however if export test_backup, then import with
+  sudo zpool import -d /var/tmp/zfszipper_tests/dev/
+  gets error: zfszipper_test_backupA.dmg  UNAVAIL  cannot open
+   backupPool.exportPool()

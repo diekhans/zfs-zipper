@@ -18,7 +18,7 @@ def parseFacility(facilityStr):
 def parseLevel(levelStr):
     "convert a log level string to numeric value"
     levelStrUp = levelStr.upper()
-    level = logging._levelNames.get(levelStrUp)
+    level = logging._nameToLevel.get(levelStrUp)
     if level is None:
         raise ValueError("invalid logging level: \"" + levelStr + "\"")
     return level
@@ -77,7 +77,7 @@ def addCmdOptions(parser):
                             ", ".join(SysLogHandler.facility_names.iterkeys())))
     parser.add_argument("--logLevel", default="warn", type=parseLevel,
                         help="Set level to case-insensitive symbolic value, one of {}".format(
-                            ", ".join([n for n in logging._levelNames.itervalues() if isinstance(n, str)])))
+                            ", ".join([n for n in logging._nameToLevel.keys() if isinstance(n, str)])))
 
 def setupFromCmd(opts, prog=None):
     """configure logging based on command options.  If prog is specified, then

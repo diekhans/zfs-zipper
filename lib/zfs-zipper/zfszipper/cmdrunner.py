@@ -1,19 +1,25 @@
 """
 Object for running commands.
 """
-
+import sys
 import subprocess
 import tempfile
 import logging
 logger = logging.getLogger()
 
+def stdflush():
+    sys.stdout.flush()
+    sys.stderr.flush()
+
 class ProcessError(Exception):
     "unlike subprocess, this includes stderr"
     def __init__(self, returncode, cmd, stderr, stdout=None):
+        def decode(v):
+            return v.decode("utf-8") if isinstance(v, bytes) else v  # None and str passed through
         self.returncode = returncode
         self.cmd = tuple(cmd)
-        self.stderr = stderr
-        self.stdout = stdout
+        self.stderr = decode(stderr)
+        self.stdout = decode(stdout)
         msg = " ".join(self.cmd) + " exited " + str(self.returncode)
         if self.stderr is not None:
             msg += ": " + self.stderr
@@ -32,8 +38,8 @@ class Pipeline2Exception(Exception):
 class AsyncProc(object):
     def __init__(self, cmd, stdin=None, stdout=None):
         self.cmd = cmd
-        self.stderrFh = tempfile.NamedTemporaryFile(prefix="zfszipper")
-        self.proc = subprocess.Popen(cmd, stdin=stdin, stdout=stdout, stderr=self.stderrFh)
+        self.stderrFh = tempfile.NamedTemporaryFile(prefix="zfszipper", mode="w+", encoding="utf-8")
+        self.proc = subprocess.Popen(cmd, stdin=stdin, stdout=stdout, stderr=self.stderrFh, encoding="utf-8")
 
     def waitNoThrow(self):
         "return (stderr, None) or (stderr, exception) on error, logs errors"
@@ -44,7 +50,7 @@ class AsyncProc(object):
                 raise ProcessError(code, self.cmd, self.stderrFh.read())
             self.stderrFh.seek(0)
             return (self.stderrFh.read(), None)
-        except Exception, ex:
+        except Exception as ex:
             self.stderrFh.seek(0)
             stderr = self.stderrFh.read()
             logger.exception("failed: " + " " .join(self.cmd) + " got " + stderr)
@@ -58,7 +64,7 @@ class CmdRunner(object):
 
     def _run(self, cmd):
         # check_output doesn't return stderr in message
-        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding="utf-8")
         stdout, stderr = process.communicate()
         if process.returncode != 0:
             raise ProcessError(process.returncode, cmd, stderr)
