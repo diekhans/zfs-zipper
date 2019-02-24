@@ -132,29 +132,34 @@ config = BackupConf([backupSetConf],
         if ok:
             raise Exception("Excepted failure, didn't get exception")
 
-    def runTest1(self):
+    def runTest1(self, noClean):
+        # FIXME:  See to-do on testing autoimport
         self._testInit()
         sourcePool = self._createSourcePool()
-        backupPool = self._createBackupPool(self.testBackupPoolAName)
+        backupPoolA = self._createBackupPool(self.testBackupPoolAName)
         configPy = writeConfigPy(self.testEtcDir, self.configPyCode)
-        self._test1Full1(sourcePool, backupPool, configPy)
 
-        # FIXME:  want to test auto-import, however if export test_backup, then import
-        # with
-        #   sudo zpool import -d /var/tmp/zfszipper_tests/dev/
-        #   gets error: zfszipper_test_backupA.dmg  UNAVAIL  cannot open
-        # backupPool.exportPool()
-        self._test1Incr1(sourcePool, backupPool, configPy)
-        self._test1Incr2(sourcePool, backupPool, configPy)
-        self._test1FullOverwriteFail(sourcePool, backupPool, configPy)
-        self.cleanup()
+        # full blackup
+        self._test1Full1(sourcePool, backupPoolA, configPy)
+
+        # incrementals
+        self._test1Incr1(sourcePool, backupPoolA, configPy)
+        self._test1Incr2(sourcePool, backupPoolA, configPy)
+
+        # attempt at overwriting
+        self._test1FullOverwriteFail(sourcePool, backupPoolA, configPy)
+
+        if not noClean:
+            self.cleanup()
 
 
 def parseCommand():
     usage = """runs tests or do a cleanup
     """
     parser = argparse.ArgumentParser(description=usage)
-    parser.add_argument("action",
+    parser.add_argument("--noClean", default=False, action="store_true",
+                        help="""Don't do cleanup after test run to allow inspection""")
+    parser.add_argument("action", choices=("test", "clean"),
                         help="""test to run tests, or clean to cleanup failed tests""")
     args = parser.parse_args()
     if args.action not in ("test", "clean"):
@@ -163,10 +168,12 @@ def parseCommand():
         parser.error("must be run as root")
     return args
 
-args = parseCommand()
-# ensure subprocess can find library
-os.environ["PYTHONPATH"] = "..:" + os.environ.get("PYTHONPATH", "")
-if args.action == "test":
-    VirtualDiskTests().runTest1()
-else:
-    VirtualDiskTests.cleanup()
+def main(args):
+    # ensure subprocess can find library
+    os.environ["PYTHONPATH"] = "..:" + os.environ.get("PYTHONPATH", "")
+    if args.action == "test":
+        VirtualDiskTests().runTest1(args.noClean)
+    else:
+        VirtualDiskTests.cleanup()
+
+main(parseCommand())
