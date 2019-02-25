@@ -81,14 +81,14 @@ uninstall:
 	rmdir ${uninstallDirs}
 
 test:
-	cd tests && ${MAK} test
+	cd tests && ${MAKE} test
 
 ltest:
-	cd test && {MAKE} ltest
+	cd tests && ${MAKE} ltest
 
 vtest:
-	(cd tests && ${PYTHON} vtest)
+	cd tests && ${MAKE} vtest
 
 vtestclean:
-	(cd tests && ${PYTHON} vtestclean)
+	cd tests && ${MAKE} vtestclean
 
