@@ -34,5 +34,12 @@ def splitTabLinesToRows(lines):
     "split newline separate lines with tab separated columns into a list of lists "
     return tuple(map(lambda l: tuple(l.split("\t")), splitLinesToRows(lines)))
 
+
+# hack to allow tests tests to control time to compare to results.
+currentGmtTimeStrFunc = None
+
 def currentGmtTimeStr():
-    return time.strftime("%Y-%m-%dT%T", time.gmtime())
+    if currentGmtTimeStrFunc is not None:
+        return currentGmtTimeStrFunc()
+    else:
+        return time.strftime("%Y-%m-%dT%T", time.gmtime())

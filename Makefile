@@ -71,6 +71,7 @@ ${periodicDir}/%: etc/periodic/%
 
 clean:
 	rm -f ${libPycSrcFiles}
+	rm -rf lib/zfs-zipper/zfszipper/__pycache__
 	cd tests && ${MAKE} clean
 
 lint:

@@ -1,30 +1,36 @@
 #!/usr/bin/env python3
 """ZFS-based backup driver with rotating backup sets.
 
-A BackupSet consists of BackupPools, for backing up the same set of source data
-and can be rotated.  A BackupPool could be a single disk or a RAID pool.
+A BackupSet consists of BackupPools, for backing up the same set of source
+data and can be rotated.  A BackupPool could be a single disk or a RAID pool.
 
 The source file system structure is reproduced under the top level BackupPool
 file system. Snapshots of the source file systems are use to manage the backup
-on the BackupPool file systems.
+on the BackupPool file systems.  The first back is conceptually a `full'
+backup, but this could start at any snapshot.  Subsequent backups are sent
+as deltas between snapshots.
 
 Snapshots are named in the form:
+    zipper_<GMT>_<backupset>
+
+Older versions names snapshots in the forms:
     zipper_<GMT>_<backupset>_full
     zipper_<GMT>_<backupset>_incr
+However, the concept of full vs increment wasn't useful and these extensions
+are now just part of the name and not added for new snapshots.  It the future,
+other suffixes might be used as some kind of taggins system.
 
-The full snapshot is used as a starting point when starting an empty backup
-disk. It does allow making a backup that doesn't include snapshots older than
-the full.
+When a backup is started, a new snapshot is made on the source file system.
+Incremental snapshots are sent to the backup file system starting after
+the most recent common snapshot to the new source snapshot.
 
-When a source FS is first backed up to a BackupPool, a full snapshot is
-created.  This serves as a baseline for the incremental backups.  If the
-source full pool is to be destroyed, a new full backup for the target pool
-must first be made. All that matters is the latest full is on both the source
-FS and the BackupPool FS.
+If there are not zfs-zipper snapshots on the backup file system,
+all snapshots are copied.  If there are zfs-zipper snapshots, but
+no common ones, it is currently an error.
 
-If it is desired to incldude stapshorts that already exist on the source file
-system when a new backup pool is supplied, the a base full back maybe specified
-instead of creating a new one.
+Other features maybe added in the future to adjust starting snapshot
+to allow for omitting deleted data.
+
 """
 
 import os
@@ -35,9 +41,9 @@ import logging
 myBinDir = os.path.normpath(os.path.dirname(sys.argv[0]))
 sys.path.insert(0, os.path.join(myBinDir, "../lib/zfs-zipper"))
 from zfszipper.zfs import Zfs
-from zfszipper.backup import BackupSnapshot, BackupSetBackup, BackupType, BackupRecorder, BackupError
+from zfszipper.backup import BackupSetBackup, BackupRecorder, BackupError
 from zfszipper.config import BackupConf
-from zfszipper import loggingops
+from zfszipper import loggingOps
 from zfszipper.cmdrunner import stdflush
 logger = logging.getLogger()
 
@@ -66,40 +72,36 @@ def parseCommand():
                         help="""Backup only this set.  If not specified, all sets in config file are backed up.""")
     parser.add_argument("--sourceFileSystem", metavar="name", dest="sourceFileSystemNames", action="append",
                         help="""Backup only this ZFS file system (not mount point).   Must specify --backUpSet. This option maybe repeated.""")
-    parser.add_argument("--full", dest="full", action="store_true", default=False,
-                        help="""If specified, do a full backup.  If backup pool has been used before, --allowOverwrite must be specified""")
     parser.add_argument("--allowOverwrite", dest="allowOverwrite", action="store_true", default=False,
                         help="""If specified, allow overwriting existing file systems in the backup pool.  This must be specified when overwriting
-                        an existing backup with a new full backup.""")
-    parser.add_argument("--fullBaseSnapshot", dest="fullBaseSnapshots", metavar="fs@snapshot", action="append",
-                        help="""If specified, this is the existing full snapshot on the source file
-                        system where the backup should begin.   The snapshot must not exists of the backup.
-                        This maybe repeated for multiple file systems. This willl disable default full backups,
-                        to prevent errors.""")
+                        an existing backup.""")
+    # parser.add_argument("--baseSnapshot", dest="baseSnapshots", metavar="fs@snapshot", action="append",
+    #                     help="""If specified, this is the existing snapshot on the source file
+    #                     system where the backup should begin.   The snapshot must not exists of the backup.
+    #                     This maybe repeated for multiple file systems. This will disable default backups,
+    #                     to prevent errors. [NOT IMPLEMENTED}""")
     parser.add_argument("--verboseLevel", metavar="logLevel", dest="verboseLevel", action="store", default=None,
                         help="""syslog style level name for logging to stderr""")
     args = parser.parse_args()
     setattr(args, "config", evalConfigFile(args.configPy))
     if args.verboseLevel is not None:
-        args.verboseLevel = loggingops.parseLevel(args.verboseLevel)
+        args.verboseLevel = loggingOps.parseLevel(args.verboseLevel)
     if args.sourceFileSystemNames is not None:
         args.sourceFileSystemNames = [os.path.normpath(fs) for fs in args.sourceFileSystemNames]
-    if args.full and (args.fullBaseSnapshots is not None):
-            parser.error("can't specify --full with --fullBaseSnapshot")
-    if args.allowOverwrite and (args.fullBaseSnapshots is not None):
-            parser.error("can't specify --allowOverwrite with --fullBaseSnapshot")
-    if args.fullBaseSnapshots is not None:
-        args.fullBaseSnapshots = [BackupSnapshot.createFromSnapshotName(fb, requireFileSystem=True) for fb in args.fullBaseSnapshots]
-        checkDupFullBaseSnapshots(parser, args.fullBaseSnapshots)
+    # if args.baseSnapshots is not None:
+    #     parser.error("--naseSnapshot is not yet implemented")
+    #     args.baseSnapshots = [BackupSnapshot.createFromSnapshotName(fb, requireFileSystem=True) for fb in args.baseSnapshots]
+    #     checkDupBaseSnapshots(parser, args.baseSnapshots)
     checkBackupSubsetArgs(parser, args)
     return args
 
-def checkDupFullBaseSnapshots(parser, fullBaseSnapshots):
+def checkDupBaseSnapshots(parser, baseSnapshots):
+    # NOT CURRENTLY USED OR TESTED
     found = set()
-    for fullBaseSnapshot in fullBaseSnapshots:
-        if fullBaseSnapshot.fileSystemName in found:
-            parser.error("file system {} from specified in multiple --fullBaseSnapshot arguments".format(fullBaseSnapshot.fileSystemName, fullBaseSnapshot))
-        found.add(fullBaseSnapshot.fileSystemName)
+    for baseSnapshot in baseSnapshots:
+        if baseSnapshot.fileSystemName in found:
+            parser.error("file system {} from specified in multiple --baseSnapshot arguments".format(baseSnapshot.fileSystemName, baseSnapshot))
+        found.add(baseSnapshot.fileSystemName)
 
 def checkBackupSubsetArgs(parser, args):
     if (args.sourceFileSystemNames is not None) and (args.backupSetName is None):
@@ -116,11 +118,10 @@ class Backup(object):
         self.config = args.config
         self.recorder = BackupRecorder(self.config.recordFile, sys.stdout)
         self.allowOverwrite = args.allowOverwrite
-        self.backupType = BackupType.full if args.full else BackupType.incr
         self.zfs = Zfs()
         self.backupSetName = args.backupSetName
         self.sourceFileSystemNames = tuple(args.sourceFileSystemNames) if args.sourceFileSystemNames is not None else None
-        self.fullBaseSnapshotMap = self._partitionFullBaseSnapshots(args.fullBaseSnapshots)
+        # FIXME self.baseSnapshotMap = self._partitionBaseSnapshots(args.baseSnapshots)
         self.lockFh = None
 
     def _getActiveBackupSets(self):
@@ -129,32 +130,34 @@ class Backup(object):
         else:
             return self.config.backupSets
 
-    def _partitionFullBaseSnapshot(self, fullBaseSnapshot, fsFullBaseSnapshotMap):
-        "Add mapping of fs name to fullBaseSnapshot.  Check that FS is in one and only one of the backsets"
-        if (self.sourceFileSystemNames is not None) and (fullBaseSnapshot.fileSystemName not in self.sourceFileSystemNames):
-            raise Exception("file system {} from fullBaseSnapshot {} not in restricted set of file systems {}"
-                            .format(fullBaseSnapshot.fileSystemName, fullBaseSnapshot, self.sourceFileSystemNames))
+    def _partitionBaseSnapshot(self, baseSnapshot, fsBaseSnapshotMap):
+        "Add mapping of fs name to baseSnapshot.  Check that FS is in one and only one of the backsets"
+        # NOT CURRENTLY USED OR TESTED
+        if (self.sourceFileSystemNames is not None) and (baseSnapshot.fileSystemName not in self.sourceFileSystemNames):
+            raise Exception("file system {} from baseSnapshot {} not in restricted set of file systems {}"
+                            .format(baseSnapshot.fileSystemName, baseSnapshot, self.sourceFileSystemNames))
 
-        fullBaseSnapshotMap = {}
+        baseSnapshotMap = {}
         for backupSetConf in self._getActiveBackupSets():
-            fs = backupSetConf.findSourceFileSystem(fullBaseSnapshot.fileSystemName)
+            fs = backupSetConf.findSourceFileSystem(baseSnapshot.fileSystemName)
             if fs is not None:
-                if fs.fileSystemName in fullBaseSnapshotMap:
-                    raise Exception("file system {} from fullBaseSnapshot {} found in multiple backupsets, must restrict to one backup set to use this feature"
-                                    .format(fullBaseSnapshot.fileSystemName, fullBaseSnapshot))
-                fullBaseSnapshotMap[fullBaseSnapshot.fileSystemName] = fullBaseSnapshot
-        if fullBaseSnapshot.fileSystemName not in fullBaseSnapshotMap:
-            raise Exception("file system {} from fullBaseSnapshot {} found in any of the backupset or the one configured on the command line"
-                            .format(fullBaseSnapshot.fileSystemName, fullBaseSnapshot))
+                if fs.fileSystemName in baseSnapshotMap:
+                    raise Exception("file system {} from baseSnapshot {} found in multiple backupsets, must restrict to one backup set to use this feature"
+                                    .format(baseSnapshot.fileSystemName, baseSnapshot))
+                baseSnapshotMap[baseSnapshot.fileSystemName] = baseSnapshot
+        if baseSnapshot.fileSystemName not in baseSnapshotMap:
+            raise Exception("file system {} from baseSnapshot {} found in any of the backupset or the one configured on the command line"
+                            .format(baseSnapshot.fileSystemName, baseSnapshot))
 
-    def _partitionFullBaseSnapshots(self, fullBaseSnapshots):
-        """partition list of full-bases by file system and ensure both file system and
-        snapshot exist."""
-        fullBaseSnapshotMap = {}
-        if fullBaseSnapshots is not None:
-            for fullBaseSnapshot in fullBaseSnapshots:
-                self._partitionFullBaseSnapshot(fullBaseSnapshot, fullBaseSnapshotMap)
-        return fullBaseSnapshotMap
+    def _partitionBaseSnapshots(self, baseSnapshots):
+        """partition list of bases snapshots by file system and ensure both
+        file system and snapshot exist."""
+        # NOT CURRENTLY USED OR TESTED
+        baseSnapshotMap = {}
+        if baseSnapshots is not None:
+            for baseSnapshot in baseSnapshots:
+                self._partitionBaseSnapshot(baseSnapshot, baseSnapshotMap)
+        return baseSnapshotMap
 
     def __obtainLock(self):
         self.lockFh = open(self.config.lockFile, "w")
@@ -163,16 +166,12 @@ class Backup(object):
         except IOError as ex:
             raise BackupError("can't lock {}, is another backup running?".format(self.config.lockFile), ex)
 
-    def _backupSomeFileSystems(self, backupper, backupSetConf, sourceFileSystemNames):
-        for sourceFileSystemName in sourceFileSystemNames:
-            backupper.backupOne(self.backupType, backupSetConf.getSourceFileSystem(sourceFileSystemName))
-
     def _backupOneSet(self, backupSetConf, sourceFileSystemNames=None):
         backupper = BackupSetBackup(self.zfs, self.recorder, backupSetConf, self.allowOverwrite)
+        sourceFileSystemConfs = None
         if sourceFileSystemNames is not None:
-            self._backupSomeFileSystems(backupper, backupSetConf, sourceFileSystemNames)
-        else:
-            backupper.backupAll(self.backupType)
+            sourceFileSystemConfs = [backupSetConf.getSourceFileSystem(n) for n in sourceFileSystemNames]
+        backupper.backup(sourceFileSystemConfs)
 
     def runBackups(self):
         self.__obtainLock()
@@ -181,11 +180,11 @@ class Backup(object):
 
 def main(args):
     if args.verboseLevel is not None:
-        loggingops.setupStderrLogger(args.verboseLevel)
+        loggingOps.setupStderrLogger(args.verboseLevel)
     if args.config.syslogFacility is not None:
-        loggingops.setupSyslogLogger(args.config.syslogFacility, args.config.syslogLevel, prog=os.path.basename(sys.argv[0]))
+        loggingOps.setupSyslogLogger(args.config.syslogFacility, args.config.syslogLevel, prog=os.path.basename(sys.argv[0]))
     if (args.verboseLevel is None) and (args.config.syslogFacility is None):
-        loggingops.setupNullLogger()
+        loggingOps.setupNullLogger()
 
     backup = Backup(args)
     try:

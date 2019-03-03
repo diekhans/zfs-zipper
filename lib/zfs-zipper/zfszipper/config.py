@@ -4,7 +4,7 @@ Configuration objects.
 import os
 import time
 from collections import OrderedDict
-from zfszipper import loggingops
+from zfszipper import loggingOps
 
 class BackupConfigError(Exception):
     pass
@@ -107,8 +107,8 @@ class BackupConf(object):
         self.backupSets = backupSets
         self.lockFile = lockFile
         self.recordFile = time.strftime(recordFilePattern, time.gmtime()) if recordFilePattern is not None else None
-        self.syslogFacility = loggingops.parseFacility(syslogFacility) if syslogFacility is not None else None
-        self.syslogLevel = loggingops.parseLevel(syslogLevel)
+        self.syslogFacility = loggingOps.parseFacility(syslogFacility) if syslogFacility is not None else None
+        self.syslogLevel = loggingOps.parseLevel(syslogLevel)
 
     def getBackupSet(self, backupSetName):
         for backupSet in self.backupSets:

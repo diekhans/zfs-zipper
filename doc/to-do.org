@@ -40,9 +40,11 @@ Probably should do a tmpname on snapshop
 https://pypi.org/project/libzfs/
 https://pypi.org/project/weir/
         
-
 * want to test auto-import
 however if export test_backup, then import with
   sudo zpool import -d /var/tmp/zfszipper_tests/dev/
   gets error: zfszipper_test_backupA.dmg  UNAVAIL  cannot open
    backupPool.exportPool()
+* sendRecvFull allowOverwrite isn't coded correctly.
+-F only rolls back, it doesn't start over.
+testFullOverwrite and forceOverwrite not tested.  Maybe the whole allow overwrite needs to be re-thought tests are disabled

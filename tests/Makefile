@@ -20,5 +20,5 @@ vtestclean:
 	 sudo ${PYTHON} virtualDiskTests.py clean
 
 clean: vtestclean
-	rm -f ${etcDir}/zfs-zipper.conf.py
+	rm -rf __pycache__
 
