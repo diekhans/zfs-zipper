@@ -8,7 +8,7 @@ import argparse
 import logging
 logger = logging.getLogger()
 sys.path.insert(0, os.path.normpath(os.path.dirname(sys.argv[0])) + "/../lib/zfs-zipper")
-from testops import ensureDir, runCmd, deleteFiles
+from testops import ensureDir, runCmd
 if os.uname()[0] == 'Darwin':
     from macVirtualZfs import zfsVirtualCreatePool, zfsVirtualCleanup
 else:
@@ -56,9 +56,8 @@ config = BackupConf([backupSetConf],
 
     @staticmethod
     def cleanup():
-        deleteFiles(VirtualDiskTests.testVarDir + "/*")
-        deleteFiles(VirtualDiskTests.testEtcDir + "/*")
         zfsVirtualCleanup(VirtualDiskTests.testRootDir, VirtualDiskTests.testPoolPrefix)
+        runCmd(['rm', '-rf', VirtualDiskTests.testRootDir])
 
     def _testInit(self):
         self.cleanup()

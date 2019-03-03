@@ -1,10 +1,20 @@
 # -*- mode: makefile-gmake -*-
 PYTHON = python3
 
-test: backupLibTests vtest
+hostname = $(shell hostname -s)
 
-backupLibTests:
-	 ${PYTHON} backupLibTests.py
+test:: backupLibTests vtest
+ifeq (${hostname}, osprey)
+test :: ltest
+endif
+
+backupLibTests: backupSnapshotTests backuperTests
+
+backupSnapshotTests:
+	 ${PYTHON} backupLibTests.py BackupSnapshotTests
+
+backuperTests:
+	 ${PYTHON} backupLibTests.py BackuperTests
 
 # requires local ZFS
 ltest: zfsLocalSystemTests

@@ -65,14 +65,10 @@ class BackupError(Exception):
 
 class FsBackup(object):
     "backup one file system (args are objects, not names)"
-    def __init__(self, zfs, recorder, backupSetConf, sourceFileSystem, backupPool, allowOverwrite, *, forceOverwrite=False):
-        assert(not forceOverwrite)   # no implemented
-        assert(allowOverwrite if forceOverwrite else True)
+    def __init__(self, zfs, recorder, backupSetConf, sourceFileSystem, backupPool):
         self.zfs = zfs
         self.recorder = recorder
         self.backupSetConf = backupSetConf
-        self.allowOverwrite = allowOverwrite
-        self.forceOverwrite = forceOverwrite
 
         # backup source
         self.sourceFileSystem = sourceFileSystem
@@ -82,12 +78,17 @@ class FsBackup(object):
         self.backupPool = backupPool
         self.backupFileSystemName = backupSetConf.getBackupPoolConf(backupPool.name).determineBackupFileSystemName(sourceFileSystem)
 
-        # None if file system doesn't exist
-        self.backupFileSystem = zfs.findFileSystem(self.backupFileSystemName)
-        self.backupSnapshots = BackupSnapshots(zfs, self.backupFileSystem)
+        self.backupFileSystem = None
+        self.backupSnapshots = None
+
+    def _setupBackupPoolFs(self):
+        "Create the file system if it doesn't exist"
+        self.backupFileSystem = self.zfs.findFileSystem(self.backupFileSystemName)
+        if self.backupFileSystem is None:
+            self.backupFileSystem = self.zfs.createFileSystem(self.backupFileSystemName)
+        self.backupSnapshots = BackupSnapshots(self.zfs, self.backupFileSystem)
 
     def _recordFull(self, sourceSnapshot, backupSnapshot, info):
-        # FIXME: create common code for parsing input; note incremental can get 3 or 4 columns
         # full	test_src@snap1	481832
         # size	481832
         if len(info) != 2:
@@ -121,7 +122,7 @@ class FsBackup(object):
     def _sendFull(self, sourceSnapshot):
         backupSnapshot = BackupSnapshot.createFromSnapshot(sourceSnapshot, self.backupFileSystemName)
         logger.info("send full snapshot {} -> {}".format(sourceSnapshot, backupSnapshot))
-        info = self.zfs.sendRecvFull(sourceSnapshot.getFileSystemSnapshotName(), backupSnapshot.getFileSystemSnapshotName(), self.allowOverwrite)
+        info = self.zfs.sendRecvFull(sourceSnapshot.getFileSystemSnapshotName(), backupSnapshot.getFileSystemSnapshotName())
         self._recordFull(sourceSnapshot, backupSnapshot, info)
         return backupSnapshot
 
@@ -138,23 +139,15 @@ class FsBackup(object):
         self.zfs.createSnapshot(newSourceSnapshot.getFileSystemSnapshotName())
         return newSourceSnapshot
 
-    def _backupNewFirst(self):
+    def _backupNewSource(self):
         "there are no source snapshots, so we just make a new snapshot and sent the whole thing"
         self._sendFull(self._createSourceSnapshot())
 
-    def _backupNewExisting(self):
-        "there are existing source snapshots, so we send them all then make a new one as an incremental"
-        self._sendFull(self.sourceSnapshots[0])
-        for i in range(1, len(self.sourceSnapshots)):
-            self._sendIncr(self.sourceSnapshots[i - 1], self.sourceSnapshots[1])
-        self._sendIncr(self.sourceSnapshots[-1], self._createSourceSnapshot())
-
-    def _backupNew(self):
-        """create a backup where there are no existing backup snapshots to start against"""
-        if len(self.sourceSnapshots) == 0:
-            self._backupNewFirst()
-        else:
-            self._backupNewExisting()
+    def _backupNoCommonSnapshot(self):
+        """there are existing source snapshots, but none in common, which might be a new back pool,
+        sync the oldest and we go from there"""
+        self._sendFull(self.sourceSnapshots[-1])
+        return self.sourceSnapshots[-1]
 
     def _backupIncrExisting(self, newestCommonSourceSnapshot):
         """sync all existing source snapshot as incrementals, starting with
@@ -169,23 +162,20 @@ class FsBackup(object):
         newestCommonSourceSnapshot = self._backupIncrExisting(newestCommonSourceSnapshot)
         self._sendIncr(newestCommonSourceSnapshot, self._createSourceSnapshot())
 
-    def _checkFullOverwrite(self):
-        """Safety check checks for doing backup when there are no common snapshots """
-        if (not self.allowOverwrite) and (self.backupFileSystem is not None):
-            raise BackupError("backup of {} to {}: no common full backup snapshot, yet backup pool {} already has the file system, must specify --allowOverwrite to create a new backup"
-                              .format(self.sourceFileSystem.name, self.backupFileSystemName, self.backupPool.name))
-
     def _backup(self):
-        newestCommonSourceSnapshot = self.sourceSnapshots.findNewestCommon(self.backupSnapshots)
-        if (newestCommonSourceSnapshot is None) or (self.forceOverwrite):
-            self._checkFullOverwrite()
-            self._backupNew()
+        self._setupBackupPoolFs()
+        if len(self.sourceSnapshots) == 0:
+            self._backupNewSource()
         else:
+            # existing source snapshots
+            newestCommonSourceSnapshot = self.sourceSnapshots.findNewestCommon(self.backupSnapshots)
+            if newestCommonSourceSnapshot is None:
+                newestCommonSourceSnapshot = self._backupNoCommonSnapshot()
             self._backupIncr(newestCommonSourceSnapshot)
 
     def backup(self):
-        logger.info("backup: backupSet {} {} -> {} overwrite: {}"
-                    .format(self.backupSetConf.name, self.sourceFileSystem.name, self.backupFileSystemName, str(self.allowOverwrite)))
+        logger.info("backup: backupSet {} {} -> {}"
+                    .format(self.backupSetConf.name, self.sourceFileSystem.name, self.backupFileSystemName))
         try:
             self._backup()
         except Exception as ex:
@@ -196,12 +186,10 @@ class FsBackup(object):
 
 class BackupSetBackup(object):
     "backup of all data in a backup set"
-    def __init__(self, zfs, recorder, backupSetConf, allowOverwrite, *, forceOverwrite=False):
+    def __init__(self, zfs, recorder, backupSetConf):
         self.recorder = recorder
         self.zfs = zfs
         self.backupSetConf = backupSetConf
-        self.allowOverwrite = allowOverwrite
-        self.forceOverwrite = forceOverwrite
         self.backupPool, self.importedPool = self._findBackupPoolToUse()
 
     def _findBackupPoolToUse(self):
@@ -266,7 +254,7 @@ class BackupSetBackup(object):
         try:
             fsBackup = FsBackup(self.zfs, self.recorder, self.backupSetConf,
                                 self._getSourceFileSystem(sourceFileSystemConf),
-                                self.backupPool, self.allowOverwrite, forceOverwrite=self.forceOverwrite)
+                                self.backupPool)
             fsBackup.backup()
         except Exception as ex:
             self.recorder.error(self.backupSetConf, self.backupPool, ex)

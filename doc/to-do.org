@@ -18,7 +18,8 @@ Probably should do a tmpname on snapshop
 
 * mbuffer in pipe is suppose to really speed up zfs send/recieve
 
-* running out of diskspace on backup media screws logging up:
+* syslog bufferr overflow
+** running out of diskspace on backup media screws logging up:
     time	backupSet	backupPool	action	src1Snap	src2Snap	backupSnap	size	exception	info
     2019-02-19T20:13:23	osprey1	osprey_zackup1a	incr	a_pool/markd_a@zipper_2019-02-14T02:07:06_osprey1_incr	a_pool/markd_a@zipper_2019-02-19T20:13:09_osprey1_incr	osprey_zackup1a/a_pool/markd_a@zipper_2019-02-19T20:13:09_osprey1_incr	a_pool/markd_a@zipper_2019-02-19T20:13:09_osprey1_incr		
     2019-02-19T20:13:27	osprey1	osprey_zackup1a	incr	a_pool/osprey@zipper_2019-02-14T02:07:37_osprey1_incr	a_pool/osprey@zipper_2019-02-19T20:13:26_osprey1_incr	osprey_zackup1a/a_pool/osprey@zipper_2019-02-19T20:13:26_osprey1_incr	a_pool/osprey@zipper_2019-02-19T20:13:26_osprey1_incr		
@@ -36,6 +37,9 @@ Probably should do a tmpname on snapshop
     zfs receive -F osprey_zackup1a/b_pool/photo_b@zipper_2018-10-31T00:14:00_osprey1_incr exited 1: cannot receive incremental stream: out of space
      (specify --verboseLevel=error for more details)
 
+** docs:
+- syslog_ng https://gist.github.com/darconeous/1b3aee893536c1de2401
+- dated, says UDP only, syslog_ng http://hints.macworld.com/article.php?story=20040710171559860
 * Maybe switch to using one of the python ZFS APIs:
 https://pypi.org/project/libzfs/
 https://pypi.org/project/weir/
@@ -45,6 +49,9 @@ however if export test_backup, then import with
   sudo zpool import -d /var/tmp/zfszipper_tests/dev/
   gets error: zfszipper_test_backupA.dmg  UNAVAIL  cannot open
    backupPool.exportPool()
-* sendRecvFull allowOverwrite isn't coded correctly.
+* overwrite check is all wrong
+** sendRecvFull allowOverwrite isn't coded correctly.
 -F only rolls back, it doesn't start over.
 testFullOverwrite and forceOverwrite not tested.  Maybe the whole allow overwrite needs to be re-thought tests are disabled
+slog about on to long a message, temporaryly disable in confi
+https://superuser.com/questions/168727/mac-extend-or-disable-500-messages-limit-of-console

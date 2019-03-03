@@ -19,7 +19,7 @@
 
 * initializing a zfs pool backup disk
      dd if=/dev/zero of=/dev/XX1 bs=1m count=128
-     zpool create -O atime=off -O compression=lz4 -O dedup=on -m /media/zackup1 osprey_zackup1a ada0 ada1
+     zpool create -O atime=off -O compression=lz4 -O dedup=on -m /media/zackup1 osprey_zackup1a disk0 disk1
 
 * discovering pool status
    sudo zpool status osprey_backup?

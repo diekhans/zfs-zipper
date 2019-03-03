@@ -72,15 +72,12 @@ def parseCommand():
                         help="""Backup only this set.  If not specified, all sets in config file are backed up.""")
     parser.add_argument("--sourceFileSystem", metavar="name", dest="sourceFileSystemNames", action="append",
                         help="""Backup only this ZFS file system (not mount point).   Must specify --backUpSet. This option maybe repeated.""")
-    parser.add_argument("--allowOverwrite", dest="allowOverwrite", action="store_true", default=False,
-                        help="""If specified, allow overwriting existing file systems in the backup pool.  This must be specified when overwriting
-                        an existing backup.""")
     # parser.add_argument("--baseSnapshot", dest="baseSnapshots", metavar="fs@snapshot", action="append",
     #                     help="""If specified, this is the existing snapshot on the source file
     #                     system where the backup should begin.   The snapshot must not exists of the backup.
     #                     This maybe repeated for multiple file systems. This will disable default backups,
     #                     to prevent errors. [NOT IMPLEMENTED}""")
-    parser.add_argument("--verboseLevel", metavar="logLevel", dest="verboseLevel", action="store", default=None,
+    parser.add_argument("--verboseLevel", metavar="logLevel", dest="verboseLevel", action="store", default="error",
                         help="""syslog style level name for logging to stderr""")
     args = parser.parse_args()
     setattr(args, "config", evalConfigFile(args.configPy))
@@ -117,7 +114,6 @@ class Backup(object):
     def __init__(self, args):
         self.config = args.config
         self.recorder = BackupRecorder(self.config.recordFile, sys.stdout)
-        self.allowOverwrite = args.allowOverwrite
         self.zfs = Zfs()
         self.backupSetName = args.backupSetName
         self.sourceFileSystemNames = tuple(args.sourceFileSystemNames) if args.sourceFileSystemNames is not None else None
@@ -167,7 +163,7 @@ class Backup(object):
             raise BackupError("can't lock {}, is another backup running?".format(self.config.lockFile), ex)
 
     def _backupOneSet(self, backupSetConf, sourceFileSystemNames=None):
-        backupper = BackupSetBackup(self.zfs, self.recorder, backupSetConf, self.allowOverwrite)
+        backupper = BackupSetBackup(self.zfs, self.recorder, backupSetConf)
         sourceFileSystemConfs = None
         if sourceFileSystemNames is not None:
             sourceFileSystemConfs = [backupSetConf.getSourceFileSystem(n) for n in sourceFileSystemNames]

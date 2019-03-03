@@ -1,7 +1,7 @@
 """
 Test of basic ZFS query functions that will only work run on a system with
 multiple ZFS file systems and snapshot.  This may not run everywhere.
-It does not modify the system.
+It does not modify the system or require root.
 """
 
 import sys

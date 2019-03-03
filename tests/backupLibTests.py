@@ -6,6 +6,7 @@ import os
 import sys
 import unittest
 import tempfile
+from io import StringIO
 sys.path.insert(0, "../lib/zfs-zipper")
 from zfszipper import typeOps
 from zfszipper import loggingOps
@@ -204,45 +205,45 @@ class BackuperTests(unittest.TestCase):
             zfs.add(self.backupPool2, self.backupPool2Fs2, backupFs2SnapNames)
         return zfs
 
-    def _setupFsBackup1(self, zfs, recorder, sourceFileSystemName, backupPool=backupPool1, allowOverwrite=False, *, forceOverwrite=False):
+    def _setupFsBackup1(self, zfs, recorder, sourceFileSystemName, backupPool=backupPool1):
         return FsBackup(zfs, recorder, self.backupConf1,
                         zfs.getFileSystem(sourceFileSystemName),
-                        backupPool, allowOverwrite,
-                        forceOverwrite=forceOverwrite)
+                        backupPool)
 
-    def _twoFsBackup(self, zfs, recorder, backupPool=backupPool1, allowOverwrite=False, *, forceOverwrite=False):
-        fsBackup = self._setupFsBackup1(zfs, recorder, "srcPool1/srcPool1Fs1", backupPool=backupPool, allowOverwrite=allowOverwrite, forceOverwrite=forceOverwrite)
+    def _twoFsBackup(self, zfs, recorder, backupPool=backupPool1):
+        fsBackup = self._setupFsBackup1(zfs, recorder, "srcPool1/srcPool1Fs1", backupPool=backupPool)
         fsBackup.backup()
-        fsBackup = self._setupFsBackup1(zfs, recorder, "srcPool1/srcPool1Fs2", backupPool=backupPool, allowOverwrite=allowOverwrite, forceOverwrite=forceOverwrite)
+        fsBackup = self._setupFsBackup1(zfs, recorder, "srcPool1/srcPool1Fs2", backupPool=backupPool)
         fsBackup.backup()
 
-    def _assertActions(self, zfs, expected):
+    def _assertLineLists(self, desc, got, expected):
         self.maxDiff = None
-        try:
-            self.assertEqual(expected, zfs.actions)
-        except Exception:
-            print("Error: actions not what is expected for", self.id(), file=sys.stderr)
-            for l in expected:
-                print("   <'" + l + "',", file=sys.stderr)
-            for l in zfs.actions:
-                print("   >'" + l + "',", file=sys.stderr)
-            raise
-
-    def _assertRecorded(self, recorder, expected):
-        "expected should not include header line"
-        self.maxDiff = None
-        header = 'time	backupSet	backupPool	action	src1Snap	src2Snap	backupSnap	size	exception	info'
-        expected = [header] + list(expected)
-        got = recorder.readLines()
         try:
             self.assertEqual(expected, got)
         except Exception:
-            print("Error: recorded not what is expected for ", self.id(), file=sys.stderr)
+            print("Error: {} not what is expected for {}".format(desc, self.id()), file=sys.stderr)
             for l in expected:
                 print("   <'" + l + "',", file=sys.stderr)
             for l in got:
                 print("   >'" + l + "',", file=sys.stderr)
             raise
+
+    def _assertActions(self, zfs, expected):
+        self._assertLineLists("actions", zfs.actions, expected)
+
+    def _assertRecorded(self, recorder, expected):
+        "expected should not include header line"
+        self.maxDiff = None
+        header = 'time	backupSet	backupPool	action	src1Snap	src2Snap	backupSnap	size	exception	info'
+        got = recorder.readLines()
+        self._assertLineLists("recorder", got, [header] + list(expected))
+
+    def _assertZfs(self, zfs, expected):
+        self.maxDiff = None
+        bufFh = StringIO()
+        zfs.dump(bufFh)
+        got = bufFh.getvalue().split("\n")[0:-1]
+        self._assertLineLists("recorder", got, expected)
 
     def testInitialFull(self):
         GmtTimeFaker.setTime("2001-01-01")
@@ -251,13 +252,28 @@ class BackuperTests(unittest.TestCase):
         self._twoFsBackup(zfs, recorder)
 
         self._assertActions(zfs,
-                            ['zfs snapshot srcPool1/srcPool1Fs1@zipper_2001-01-01T00:00:00_testBackupSet',
-                             'zfs send -P srcPool1/srcPool1Fs1@zipper_2001-01-01T00:00:00_testBackupSet | zfs receive backupPool1/srcPool1/srcPool1Fs1@zipper_2001-01-01T00:00:00_testBackupSet',
+                            ['zfs create backupPool1/srcPool1/srcPool1Fs1',
+                             'zfs snapshot srcPool1/srcPool1Fs1@zipper_2001-01-01T00:00:00_testBackupSet',
+                             'zfs send -P srcPool1/srcPool1Fs1@zipper_2001-01-01T00:00:00_testBackupSet | zfs receive -F backupPool1/srcPool1/srcPool1Fs1@zipper_2001-01-01T00:00:00_testBackupSet',
+                             'zfs create backupPool1/srcPool1/srcPool1Fs2',
                              'zfs snapshot srcPool1/srcPool1Fs2@zipper_2001-01-01T00:00:02_testBackupSet',
-                             'zfs send -P srcPool1/srcPool1Fs2@zipper_2001-01-01T00:00:02_testBackupSet | zfs receive backupPool1/srcPool1/srcPool1Fs2@zipper_2001-01-01T00:00:02_testBackupSet'])
+                             'zfs send -P srcPool1/srcPool1Fs2@zipper_2001-01-01T00:00:02_testBackupSet | zfs receive -F backupPool1/srcPool1/srcPool1Fs2@zipper_2001-01-01T00:00:02_testBackupSet'])
         self._assertRecorded(recorder,
                              ['2001-01-01T00:00:01	testBackupSet	backupPool1	full	srcPool1/srcPool1Fs1@zipper_2001-01-01T00:00:00_testBackupSet		backupPool1/srcPool1/srcPool1Fs1@zipper_2001-01-01T00:00:00_testBackupSet	50000		',
                               '2001-01-01T00:00:03	testBackupSet	backupPool1	full	srcPool1/srcPool1Fs2@zipper_2001-01-01T00:00:02_testBackupSet		backupPool1/srcPool1/srcPool1Fs2@zipper_2001-01-01T00:00:02_testBackupSet	50000		'])
+        self._assertZfs(zfs,
+                        ['pool: srcPool1',
+                         '  filesystem: srcPool1/srcPool1Fs1',
+                         '    snapshot: srcPool1/srcPool1Fs1@otherSnap1',
+                         '    snapshot: srcPool1/srcPool1Fs1@otherSnap2',
+                         '    snapshot: srcPool1/srcPool1Fs1@zipper_2001-01-01T00:00:00_testBackupSet',
+                         '  filesystem: srcPool1/srcPool1Fs2',
+                         '    snapshot: srcPool1/srcPool1Fs2@zipper_2001-01-01T00:00:02_testBackupSet',
+                         'pool: backupPool1',
+                         '  filesystem: backupPool1/srcPool1/srcPool1Fs1',
+                         '    snapshot: backupPool1/srcPool1/srcPool1Fs1@zipper_2001-01-01T00:00:00_testBackupSet',
+                         '  filesystem: backupPool1/srcPool1/srcPool1Fs2',
+                         '    snapshot: backupPool1/srcPool1/srcPool1Fs2@zipper_2001-01-01T00:00:02_testBackupSet'])
         del recorder
 
     def testIncr1(self):
@@ -267,10 +283,12 @@ class BackuperTests(unittest.TestCase):
         recorder = TestBackupRecorder(self.id())
         self._twoFsBackup(zfs, recorder)
         self._assertActions(zfs,
-                            ['zfs send -P srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet | zfs receive backupPool1/srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet',
+                            ['zfs create backupPool1/srcPool1/srcPool1Fs1',
+                             'zfs send -P srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet | zfs receive -F backupPool1/srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet',
                              'zfs snapshot srcPool1/srcPool1Fs1@zipper_2001-01-02T00:00:01_testBackupSet',
                              'zfs send -P -i srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet srcPool1/srcPool1Fs1@zipper_2001-01-02T00:00:01_testBackupSet | zfs receive backupPool1/srcPool1/srcPool1Fs1@zipper_2001-01-02T00:00:01_testBackupSet',
-                             'zfs send -P srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet | zfs receive backupPool1/srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet',
+                             'zfs create backupPool1/srcPool1/srcPool1Fs2',
+                             'zfs send -P srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet | zfs receive -F backupPool1/srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet',
                              'zfs snapshot srcPool1/srcPool1Fs2@zipper_2001-01-02T00:00:04_testBackupSet',
                              'zfs send -P -i srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet srcPool1/srcPool1Fs2@zipper_2001-01-02T00:00:04_testBackupSet | zfs receive backupPool1/srcPool1/srcPool1Fs2@zipper_2001-01-02T00:00:04_testBackupSet'])
         self._assertRecorded(recorder,
@@ -278,6 +296,23 @@ class BackuperTests(unittest.TestCase):
                               '2001-01-02T00:00:02	testBackupSet	backupPool1	incr	srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet	srcPool1/srcPool1Fs1@zipper_2001-01-02T00:00:01_testBackupSet	backupPool1/srcPool1/srcPool1Fs1@zipper_2001-01-02T00:00:01_testBackupSet	50000		',
                               '2001-01-02T00:00:03	testBackupSet	backupPool1	full	srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet		backupPool1/srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet	50000		',
                               '2001-01-02T00:00:05	testBackupSet	backupPool1	incr	srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet	srcPool1/srcPool1Fs2@zipper_2001-01-02T00:00:04_testBackupSet	backupPool1/srcPool1/srcPool1Fs2@zipper_2001-01-02T00:00:04_testBackupSet	50000		'])
+        self._assertZfs(zfs,
+                        ['pool: srcPool1',
+                         '  filesystem: srcPool1/srcPool1Fs1',
+                         '    snapshot: srcPool1/srcPool1Fs1@otherSnap1',
+                         '    snapshot: srcPool1/srcPool1Fs1@otherSnap2',
+                         '    snapshot: srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet',
+                         '    snapshot: srcPool1/srcPool1Fs1@zipper_2001-01-02T00:00:01_testBackupSet',
+                         '  filesystem: srcPool1/srcPool1Fs2',
+                         '    snapshot: srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet',
+                         '    snapshot: srcPool1/srcPool1Fs2@zipper_2001-01-02T00:00:04_testBackupSet',
+                         'pool: backupPool1',
+                         '  filesystem: backupPool1/srcPool1/srcPool1Fs1',
+                         '    snapshot: backupPool1/srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet',
+                         '    snapshot: backupPool1/srcPool1/srcPool1Fs1@zipper_2001-01-02T00:00:01_testBackupSet',
+                         '  filesystem: backupPool1/srcPool1/srcPool1Fs2',
+                         '    snapshot: backupPool1/srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet',
+                         '    snapshot: backupPool1/srcPool1/srcPool1Fs2@zipper_2001-01-02T00:00:04_testBackupSet'])
         del recorder
 
     def testIncr2(self):
@@ -295,23 +330,82 @@ class BackuperTests(unittest.TestCase):
         self._assertRecorded(recorder,
                              ['1999-02-01T00:00:01	testBackupSet	backupPool1	incr	srcPool1/srcPool1Fs1@zipper_1932-02-01T17:30:34_testBackupSet	srcPool1/srcPool1Fs1@zipper_1999-02-01T00:00:00_testBackupSet	backupPool1/srcPool1/srcPool1Fs1@zipper_1999-02-01T00:00:00_testBackupSet	50000		',
                               '1999-02-01T00:00:03	testBackupSet	backupPool1	incr	srcPool1/srcPool1Fs2@zipper_1932-02-01T17:30:34_testBackupSet	srcPool1/srcPool1Fs2@zipper_1999-02-01T00:00:02_testBackupSet	backupPool1/srcPool1/srcPool1Fs2@zipper_1999-02-01T00:00:02_testBackupSet	50000		'])
+        self._assertZfs(zfs,
+                        ['pool: srcPool1',
+                         '  filesystem: srcPool1/srcPool1Fs1',
+                         '    snapshot: srcPool1/srcPool1Fs1@otherSnap1',
+                         '    snapshot: srcPool1/srcPool1Fs1@otherSnap2',
+                         '    snapshot: srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet',
+                         '    snapshot: srcPool1/srcPool1Fs1@zipper_1932-02-01T17:30:34_testBackupSet',
+                         '    snapshot: srcPool1/srcPool1Fs1@zipper_1999-02-01T00:00:00_testBackupSet',
+                         '  filesystem: srcPool1/srcPool1Fs2',
+                         '    snapshot: srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet',
+                         '    snapshot: srcPool1/srcPool1Fs2@zipper_1932-02-01T17:30:34_testBackupSet',
+                         '    snapshot: srcPool1/srcPool1Fs2@zipper_1999-02-01T00:00:02_testBackupSet',
+                         'pool: backupPool1',
+                         '  filesystem: backupPool1/srcPool1/srcPool1Fs1',
+                         '    snapshot: backupPool1/srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet',
+                         '    snapshot: backupPool1/srcPool1/srcPool1Fs1@zipper_1932-02-01T17:30:34_testBackupSet',
+                         '    snapshot: backupPool1/srcPool1/srcPool1Fs1@zipper_1999-02-01T00:00:00_testBackupSet',
+                         '  filesystem: backupPool1/srcPool1/srcPool1Fs2',
+                         '    snapshot: backupPool1/srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet',
+                         '    snapshot: backupPool1/srcPool1/srcPool1Fs2@zipper_1932-02-01T17:30:34_testBackupSet',
+                         '    snapshot: backupPool1/srcPool1/srcPool1Fs2@zipper_1999-02-01T00:00:02_testBackupSet'])
         del recorder
 
-    def FIXME_testFullOverwrite(self):
-        # full on top of increment should fail without force
+    def testNewBackupPoolWithIncrements(self):
+        # new backup pool where file systems need to be created and all incremental sent
         GmtTimeFaker.setTime("1969-02-01")
-        zfs = self._mkBackupPool1Zfs(self.pool1Fs1SnapNames[0:3], self.pool1Fs2SnapNames[0:3],
-                                     self.pool1Fs1SnapNames[0:3], self.pool1Fs2SnapNames[0:3])
+        zfs = self._mkBackupPool1Zfs(self.pool1Fs1SnapNames, self.pool1Fs2SnapNames)
         recorder = TestBackupRecorder(self.id())
-        self._twoFsBackup(zfs, recorder, allowOverwrite=True, forceOverwrite=True)
+        self._twoFsBackup(zfs, recorder)
         self._assertActions(zfs,
-                            ['zfs snapshot srcPool1/srcPool1Fs1@zipper_1969-02-01T00:00:00_testBackupSet',
-                             'zfs send -P srcPool1/srcPool1Fs1@zipper_1969-02-01T00:00:00_testBackupSet | zfs receive -F backupPool1/srcPool1/srcPool1Fs1@zipper_1969-02-01T00:00:00_testBackupSet',
-                             'zfs snapshot srcPool1/srcPool1Fs2@zipper_1969-02-01T00:00:02_testBackupSet',
-                             'zfs send -P srcPool1/srcPool1Fs2@zipper_1969-02-01T00:00:02_testBackupSet | zfs receive -F backupPool1/srcPool1/srcPool1Fs2@zipper_1969-02-01T00:00:02_testBackupSet'])
+                            ['zfs create backupPool1/srcPool1/srcPool1Fs1',
+                             'zfs send -P srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet | zfs receive -F backupPool1/srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet',
+                             'zfs send -P -i srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet srcPool1/srcPool1Fs1@zipper_1932-02-01T17:30:34_testBackupSet | zfs receive backupPool1/srcPool1/srcPool1Fs1@zipper_1932-02-01T17:30:34_testBackupSet',
+                             'zfs send -P -i srcPool1/srcPool1Fs1@zipper_1932-02-01T17:30:34_testBackupSet srcPool1/srcPool1Fs1@zipper_1932-03-02T17:30:34_testBackupSet | zfs receive backupPool1/srcPool1/srcPool1Fs1@zipper_1932-03-02T17:30:34_testBackupSet',
+                             'zfs snapshot srcPool1/srcPool1Fs1@zipper_1969-02-01T00:00:03_testBackupSet',
+                             'zfs send -P -i srcPool1/srcPool1Fs1@zipper_1932-03-02T17:30:34_testBackupSet srcPool1/srcPool1Fs1@zipper_1969-02-01T00:00:03_testBackupSet | zfs receive backupPool1/srcPool1/srcPool1Fs1@zipper_1969-02-01T00:00:03_testBackupSet',
+                             'zfs create backupPool1/srcPool1/srcPool1Fs2',
+                             'zfs send -P srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet | zfs receive -F backupPool1/srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet',
+                             'zfs send -P -i srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet srcPool1/srcPool1Fs2@zipper_1932-02-01T17:30:34_testBackupSet | zfs receive backupPool1/srcPool1/srcPool1Fs2@zipper_1932-02-01T17:30:34_testBackupSet',
+                             'zfs send -P -i srcPool1/srcPool1Fs2@zipper_1932-02-01T17:30:34_testBackupSet srcPool1/srcPool1Fs2@zipper_1932-03-02T17:30:34_testBackupSet | zfs receive backupPool1/srcPool1/srcPool1Fs2@zipper_1932-03-02T17:30:34_testBackupSet',
+                             'zfs snapshot srcPool1/srcPool1Fs2@zipper_1969-02-01T00:00:08_testBackupSet',
+                             'zfs send -P -i srcPool1/srcPool1Fs2@zipper_1932-03-02T17:30:34_testBackupSet srcPool1/srcPool1Fs2@zipper_1969-02-01T00:00:08_testBackupSet | zfs receive backupPool1/srcPool1/srcPool1Fs2@zipper_1969-02-01T00:00:08_testBackupSet'])
         self._assertRecorded(recorder,
-                             ['1969-02-01T00:00:01	testBackupSet	backupPool1	full	srcPool1/srcPool1Fs1@zipper_1969-02-01T00:00:00_testBackupSet		backupPool1/srcPool1/srcPool1Fs1@zipper_1969-02-01T00:00:00_testBackupSet	50000		',
-                              '1969-02-01T00:00:03	testBackupSet	backupPool1	full	srcPool1/srcPool1Fs2@zipper_1969-02-01T00:00:02_testBackupSet		backupPool1/srcPool1/srcPool1Fs2@zipper_1969-02-01T00:00:02_testBackupSet	50000		'])
+                             ['1969-02-01T00:00:00	testBackupSet	backupPool1	full	srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet		backupPool1/srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet	50000		',
+                              '1969-02-01T00:00:01	testBackupSet	backupPool1	incr	srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet	srcPool1/srcPool1Fs1@zipper_1932-02-01T17:30:34_testBackupSet	backupPool1/srcPool1/srcPool1Fs1@zipper_1932-02-01T17:30:34_testBackupSet	50000		',
+                              '1969-02-01T00:00:02	testBackupSet	backupPool1	incr	srcPool1/srcPool1Fs1@zipper_1932-02-01T17:30:34_testBackupSet	srcPool1/srcPool1Fs1@zipper_1932-03-02T17:30:34_testBackupSet	backupPool1/srcPool1/srcPool1Fs1@zipper_1932-03-02T17:30:34_testBackupSet	50000		',
+                              '1969-02-01T00:00:04	testBackupSet	backupPool1	incr	srcPool1/srcPool1Fs1@zipper_1932-03-02T17:30:34_testBackupSet	srcPool1/srcPool1Fs1@zipper_1969-02-01T00:00:03_testBackupSet	backupPool1/srcPool1/srcPool1Fs1@zipper_1969-02-01T00:00:03_testBackupSet	50000		',
+                              '1969-02-01T00:00:05	testBackupSet	backupPool1	full	srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet		backupPool1/srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet	50000		',
+                              '1969-02-01T00:00:06	testBackupSet	backupPool1	incr	srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet	srcPool1/srcPool1Fs2@zipper_1932-02-01T17:30:34_testBackupSet	backupPool1/srcPool1/srcPool1Fs2@zipper_1932-02-01T17:30:34_testBackupSet	50000		',
+                              '1969-02-01T00:00:07	testBackupSet	backupPool1	incr	srcPool1/srcPool1Fs2@zipper_1932-02-01T17:30:34_testBackupSet	srcPool1/srcPool1Fs2@zipper_1932-03-02T17:30:34_testBackupSet	backupPool1/srcPool1/srcPool1Fs2@zipper_1932-03-02T17:30:34_testBackupSet	50000		',
+                              '1969-02-01T00:00:09	testBackupSet	backupPool1	incr	srcPool1/srcPool1Fs2@zipper_1932-03-02T17:30:34_testBackupSet	srcPool1/srcPool1Fs2@zipper_1969-02-01T00:00:08_testBackupSet	backupPool1/srcPool1/srcPool1Fs2@zipper_1969-02-01T00:00:08_testBackupSet	50000		'])
+        self._assertZfs(zfs,
+                        ['pool: srcPool1',
+                         '  filesystem: srcPool1/srcPool1Fs1',
+                         '    snapshot: srcPool1/srcPool1Fs1@otherSnap1',
+                         '    snapshot: srcPool1/srcPool1Fs1@otherSnap2',
+                         '    snapshot: srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet',
+                         '    snapshot: srcPool1/srcPool1Fs1@zipper_1932-02-01T17:30:34_testBackupSet',
+                         '    snapshot: srcPool1/srcPool1Fs1@zipper_1932-03-02T17:30:34_testBackupSet',
+                         '    snapshot: srcPool1/srcPool1Fs1@zipper_1969-02-01T00:00:03_testBackupSet',
+                         '  filesystem: srcPool1/srcPool1Fs2',
+                         '    snapshot: srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet',
+                         '    snapshot: srcPool1/srcPool1Fs2@zipper_1932-02-01T17:30:34_testBackupSet',
+                         '    snapshot: srcPool1/srcPool1Fs2@zipper_1932-03-02T17:30:34_testBackupSet',
+                         '    snapshot: srcPool1/srcPool1Fs2@zipper_1969-02-01T00:00:08_testBackupSet',
+                         'pool: backupPool1',
+                         '  filesystem: backupPool1/srcPool1/srcPool1Fs1',
+                         '    snapshot: backupPool1/srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet',
+                         '    snapshot: backupPool1/srcPool1/srcPool1Fs1@zipper_1932-02-01T17:30:34_testBackupSet',
+                         '    snapshot: backupPool1/srcPool1/srcPool1Fs1@zipper_1932-03-02T17:30:34_testBackupSet',
+                         '    snapshot: backupPool1/srcPool1/srcPool1Fs1@zipper_1969-02-01T00:00:03_testBackupSet',
+                         '  filesystem: backupPool1/srcPool1/srcPool1Fs2',
+                         '    snapshot: backupPool1/srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet',
+                         '    snapshot: backupPool1/srcPool1/srcPool1Fs2@zipper_1932-02-01T17:30:34_testBackupSet',
+                         '    snapshot: backupPool1/srcPool1/srcPool1Fs2@zipper_1932-03-02T17:30:34_testBackupSet',
+                         '    snapshot: backupPool1/srcPool1/srcPool1Fs2@zipper_1969-02-01T00:00:08_testBackupSet',])
         del recorder
 
     def testIncr1Pool2(self):
@@ -323,16 +417,35 @@ class BackuperTests(unittest.TestCase):
         recorder = TestBackupRecorder(self.id())
         self._twoFsBackup(zfs, recorder, backupPool=self.backupPool2)
         self._assertActions(zfs,
-                            ['zfs send -P srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet | zfs receive backupPool2/srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet',
+                            ['zfs create backupPool2/srcPool1/srcPool1Fs1',
+                             'zfs send -P srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet | zfs receive -F backupPool2/srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet',
                              'zfs snapshot srcPool1/srcPool1Fs1@zipper_1932-02-01T00:00:01_testBackupSet',
                              'zfs send -P -i srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet srcPool1/srcPool1Fs1@zipper_1932-02-01T00:00:01_testBackupSet | zfs receive backupPool2/srcPool1/srcPool1Fs1@zipper_1932-02-01T00:00:01_testBackupSet',
-                             'zfs send -P srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet | zfs receive backupPool2/srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet',
+                             'zfs create backupPool2/srcPool1/srcPool1Fs2',
+                             'zfs send -P srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet | zfs receive -F backupPool2/srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet',
                              'zfs snapshot srcPool1/srcPool1Fs2@zipper_1932-02-01T00:00:04_testBackupSet',
                              'zfs send -P -i srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet srcPool1/srcPool1Fs2@zipper_1932-02-01T00:00:04_testBackupSet | zfs receive backupPool2/srcPool1/srcPool1Fs2@zipper_1932-02-01T00:00:04_testBackupSet'])
         self._assertRecorded(recorder, ['1932-02-01T00:00:00	testBackupSet	backupPool2	full	srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet		backupPool2/srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet	50000		',
                                         '1932-02-01T00:00:02	testBackupSet	backupPool2	incr	srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet	srcPool1/srcPool1Fs1@zipper_1932-02-01T00:00:01_testBackupSet	backupPool2/srcPool1/srcPool1Fs1@zipper_1932-02-01T00:00:01_testBackupSet	50000		',
                                         '1932-02-01T00:00:03	testBackupSet	backupPool2	full	srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet		backupPool2/srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet	50000		',
                                         '1932-02-01T00:00:05	testBackupSet	backupPool2	incr	srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet	srcPool1/srcPool1Fs2@zipper_1932-02-01T00:00:04_testBackupSet	backupPool2/srcPool1/srcPool1Fs2@zipper_1932-02-01T00:00:04_testBackupSet	50000		'])
+        self._assertZfs(zfs,
+                        ['pool: srcPool1',
+                         '  filesystem: srcPool1/srcPool1Fs1',
+                         '    snapshot: srcPool1/srcPool1Fs1@otherSnap1',
+                         '    snapshot: srcPool1/srcPool1Fs1@otherSnap2',
+                         '    snapshot: srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet',
+                         '    snapshot: srcPool1/srcPool1Fs1@zipper_1932-02-01T00:00:01_testBackupSet',
+                         '  filesystem: srcPool1/srcPool1Fs2',
+                         '    snapshot: srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet',
+                         '    snapshot: srcPool1/srcPool1Fs2@zipper_1932-02-01T00:00:04_testBackupSet',
+                         'pool: backupPool2',
+                         '  filesystem: backupPool2/srcPool1/srcPool1Fs1',
+                         '    snapshot: backupPool2/srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet',
+                         '    snapshot: backupPool2/srcPool1/srcPool1Fs1@zipper_1932-02-01T00:00:01_testBackupSet',
+                         '  filesystem: backupPool2/srcPool1/srcPool1Fs2',
+                         '    snapshot: backupPool2/srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet',
+                         '    snapshot: backupPool2/srcPool1/srcPool1Fs2@zipper_1932-02-01T00:00:04_testBackupSet'])
         del recorder
 
     def testIncr3Pool2(self):
@@ -359,32 +472,70 @@ class BackuperTests(unittest.TestCase):
                               '2022-02-01T00:00:04	testBackupSet	backupPool2	incr	srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet	srcPool1/srcPool1Fs2@zipper_1932-02-01T17:30:34_testBackupSet	backupPool2/srcPool1/srcPool1Fs2@zipper_1932-02-01T17:30:34_testBackupSet	50000		',
                               '2022-02-01T00:00:05	testBackupSet	backupPool2	incr	srcPool1/srcPool1Fs2@zipper_1932-02-01T17:30:34_testBackupSet	srcPool1/srcPool1Fs2@zipper_1932-03-02T17:30:34_testBackupSet	backupPool2/srcPool1/srcPool1Fs2@zipper_1932-03-02T17:30:34_testBackupSet	50000		',
                               '2022-02-01T00:00:07	testBackupSet	backupPool2	incr	srcPool1/srcPool1Fs2@zipper_1932-03-02T17:30:34_testBackupSet	srcPool1/srcPool1Fs2@zipper_2022-02-01T00:00:06_testBackupSet	backupPool2/srcPool1/srcPool1Fs2@zipper_2022-02-01T00:00:06_testBackupSet	50000		'])
+        self._assertZfs(zfs,
+                        ['pool: srcPool1',
+                         '  filesystem: srcPool1/srcPool1Fs1',
+                         '    snapshot: srcPool1/srcPool1Fs1@otherSnap1',
+                         '    snapshot: srcPool1/srcPool1Fs1@otherSnap2',
+                         '    snapshot: srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet',
+                         '    snapshot: srcPool1/srcPool1Fs1@zipper_1932-02-01T17:30:34_testBackupSet',
+                         '    snapshot: srcPool1/srcPool1Fs1@zipper_1932-03-02T17:30:34_testBackupSet',
+                         '    snapshot: srcPool1/srcPool1Fs1@zipper_2022-02-01T00:00:02_testBackupSet',
+                         '  filesystem: srcPool1/srcPool1Fs2',
+                         '    snapshot: srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet',
+                         '    snapshot: srcPool1/srcPool1Fs2@zipper_1932-02-01T17:30:34_testBackupSet',
+                         '    snapshot: srcPool1/srcPool1Fs2@zipper_1932-03-02T17:30:34_testBackupSet',
+                         '    snapshot: srcPool1/srcPool1Fs2@zipper_2022-02-01T00:00:06_testBackupSet',
+                         'pool: backupPool2',
+                         '  filesystem: backupPool2/srcPool1/srcPool1Fs1',
+                         '    snapshot: backupPool2/srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet',
+                         '    snapshot: backupPool2/srcPool1/srcPool1Fs1@zipper_1932-02-01T17:30:34_testBackupSet',
+                         '    snapshot: backupPool2/srcPool1/srcPool1Fs1@zipper_1932-03-02T17:30:34_testBackupSet',
+                         '    snapshot: backupPool2/srcPool1/srcPool1Fs1@zipper_2022-02-01T00:00:02_testBackupSet',
+                         '  filesystem: backupPool2/srcPool1/srcPool1Fs2',
+                         '    snapshot: backupPool2/srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet',
+                         '    snapshot: backupPool2/srcPool1/srcPool1Fs2@zipper_1932-02-01T17:30:34_testBackupSet',
+                         '    snapshot: backupPool2/srcPool1/srcPool1Fs2@zipper_1932-03-02T17:30:34_testBackupSet',
+                         '    snapshot: backupPool2/srcPool1/srcPool1Fs2@zipper_2022-02-01T00:00:06_testBackupSet'])
         del recorder
 
-    def FIXME_testIncrFailPool2(self):
-        # fail on existing file systems, then redo it allowOverwrite
+    def testIncr1Pool2(self):
         GmtTimeFaker.setTime("1977-02-01")
-        zfs = self._mkBackupPool2Zfs(self.pool1Fs1SnapNames[0:1], self.pool1Fs2SnapNames[0:1],
-                                     (), ())
+        zfs = self._mkBackupPool2Zfs(self.pool1Fs1SnapNames[0:1], self.pool1Fs2SnapNames[0:1])
         recorder = TestBackupRecorder(self.id())
 
-        with self.assertRaisesRegex(BackupError, "^backup of srcPool1 to backupPool2/srcPool1: no common full backup snapshot, yet backup pool backupPool2 already has the file system, must specify --allowOverwrite to create a new backup$"):
-            self._twoFsBackup(zfs, recorder, backupPool=self.backupPool2)
-
-        self._twoFsBackup(zfs, recorder, backupPool=self.backupPool2, allowOverwrite=True)
+        self._twoFsBackup(zfs, recorder, backupPool=self.backupPool2)
         self._assertActions(zfs,
-                            ['zfs send -P srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet | zfs receive -F backupPool2/srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet',
-                             'zfs snapshot srcPool1/srcPool1Fs1@zipper_1977-02-01T00:00:02_testBackupSet',
-                             'zfs send -P -i srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet srcPool1/srcPool1Fs1@zipper_1977-02-01T00:00:02_testBackupSet | zfs receive backupPool2/srcPool1/srcPool1Fs1@zipper_1977-02-01T00:00:02_testBackupSet',
-                             'zfs send -P srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet | zfs receive -F backupPool2/srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet',
-                             'zfs snapshot srcPool1/srcPool1Fs2@zipper_1977-02-01T00:00:05_testBackupSet',
-                             'zfs send -P -i srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet srcPool1/srcPool1Fs2@zipper_1977-02-01T00:00:05_testBackupSet | zfs receive backupPool2/srcPool1/srcPool1Fs2@zipper_1977-02-01T00:00:05_testBackupSet'])
+                            ['zfs create backupPool2/srcPool1/srcPool1Fs1',
+                             'zfs send -P srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet | zfs receive -F backupPool2/srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet',
+                             'zfs snapshot srcPool1/srcPool1Fs1@zipper_1977-02-01T00:00:01_testBackupSet',
+                             'zfs send -P -i srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet srcPool1/srcPool1Fs1@zipper_1977-02-01T00:00:01_testBackupSet | zfs receive backupPool2/srcPool1/srcPool1Fs1@zipper_1977-02-01T00:00:01_testBackupSet',
+                             'zfs create backupPool2/srcPool1/srcPool1Fs2',
+                             'zfs send -P srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet | zfs receive -F backupPool2/srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet',
+                             'zfs snapshot srcPool1/srcPool1Fs2@zipper_1977-02-01T00:00:04_testBackupSet',
+                             'zfs send -P -i srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet srcPool1/srcPool1Fs2@zipper_1977-02-01T00:00:04_testBackupSet | zfs receive backupPool2/srcPool1/srcPool1Fs2@zipper_1977-02-01T00:00:04_testBackupSet'])
         self._assertRecorded(recorder,
-                             ['1977-02-01T00:00:00	testBackupSet	backupPool2	error	srcPool1			BackupError	backup of srcPool1 to backupPool2/srcPool1: no common full backup snapshot, yet backup pool backupPool2 already has the file system, must specify --allowOverwrite to create a new backup	',
-                              '1977-02-01T00:00:01	testBackupSet	backupPool2	full	zipper_1932-01-01T17:30:34_testBackupSet		backupPool2/srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet	50000		',
-                              '1977-02-01T00:00:03	testBackupSet	backupPool2	incr	zipper_1932-01-01T17:30:34_testBackupSet	srcPool1/srcPool1Fs1@zipper_1977-02-01T00:00:02_testBackupSet	backupPool2/srcPool1/srcPool1Fs1@zipper_1977-02-01T00:00:02_testBackupSet	50000		',
-                              '1977-02-01T00:00:04	testBackupSet	backupPool2	full	zipper_1932-01-01T17:30:34_testBackupSet		backupPool2/srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet	50000		',
-                              '1977-02-01T00:00:06	testBackupSet	backupPool2	incr	zipper_1932-01-01T17:30:34_testBackupSet	srcPool1/srcPool1Fs2@zipper_1977-02-01T00:00:05_testBackupSet	backupPool2/srcPool1/srcPool1Fs2@zipper_1977-02-01T00:00:05_testBackupSet	50000		'])
+                             ['1977-02-01T00:00:00	testBackupSet	backupPool2	full	srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet		backupPool2/srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet	50000		',
+                              '1977-02-01T00:00:02	testBackupSet	backupPool2	incr	srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet	srcPool1/srcPool1Fs1@zipper_1977-02-01T00:00:01_testBackupSet	backupPool2/srcPool1/srcPool1Fs1@zipper_1977-02-01T00:00:01_testBackupSet	50000		',
+                              '1977-02-01T00:00:03	testBackupSet	backupPool2	full	srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet		backupPool2/srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet	50000		',
+                              '1977-02-01T00:00:05	testBackupSet	backupPool2	incr	srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet	srcPool1/srcPool1Fs2@zipper_1977-02-01T00:00:04_testBackupSet	backupPool2/srcPool1/srcPool1Fs2@zipper_1977-02-01T00:00:04_testBackupSet	50000		',])
+        self._assertZfs(zfs,
+                        ['pool: srcPool1',
+                         '  filesystem: srcPool1/srcPool1Fs1',
+                         '    snapshot: srcPool1/srcPool1Fs1@otherSnap1',
+                         '    snapshot: srcPool1/srcPool1Fs1@otherSnap2',
+                         '    snapshot: srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet',
+                         '    snapshot: srcPool1/srcPool1Fs1@zipper_1977-02-01T00:00:01_testBackupSet',
+                         '  filesystem: srcPool1/srcPool1Fs2',
+                         '    snapshot: srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet',
+                         '    snapshot: srcPool1/srcPool1Fs2@zipper_1977-02-01T00:00:04_testBackupSet',
+                         'pool: backupPool2',
+                         '  filesystem: backupPool2/srcPool1/srcPool1Fs1',
+                         '    snapshot: backupPool2/srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet',
+                         '    snapshot: backupPool2/srcPool1/srcPool1Fs1@zipper_1977-02-01T00:00:01_testBackupSet',
+                         '  filesystem: backupPool2/srcPool1/srcPool1Fs2',
+                         '    snapshot: backupPool2/srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet',
+                         '    snapshot: backupPool2/srcPool1/srcPool1Fs2@zipper_1977-02-01T00:00:04_testBackupSet'])
         del recorder
 
     def testBackupSetToPool1Full(self):
@@ -395,16 +546,30 @@ class BackuperTests(unittest.TestCase):
         zfs.add(self.backupPool1)
         zfs.add(self.backupPool2Off)
         recorder = TestBackupRecorder(self.id())
-        bsb = BackupSetBackup(zfs, recorder, self.backupConf1, allowOverwrite=False)
+        bsb = BackupSetBackup(zfs, recorder, self.backupConf1)
         bsb.backup()
         self._assertActions(zfs,
-                            ['zfs snapshot srcPool1/srcPool1Fs1@zipper_1982-02-01T00:00:00_testBackupSet',
-                             'zfs send -P srcPool1/srcPool1Fs1@zipper_1982-02-01T00:00:00_testBackupSet | zfs receive backupPool1/srcPool1/srcPool1Fs1@zipper_1982-02-01T00:00:00_testBackupSet',
+                            ['zfs create backupPool1/srcPool1/srcPool1Fs1',
+                             'zfs snapshot srcPool1/srcPool1Fs1@zipper_1982-02-01T00:00:00_testBackupSet',
+                             'zfs send -P srcPool1/srcPool1Fs1@zipper_1982-02-01T00:00:00_testBackupSet | zfs receive -F backupPool1/srcPool1/srcPool1Fs1@zipper_1982-02-01T00:00:00_testBackupSet',
+                             'zfs create backupPool1/srcPool1/srcPool1Fs2',
                              'zfs snapshot srcPool1/srcPool1Fs2@zipper_1982-02-01T00:00:02_testBackupSet',
-                             'zfs send -P srcPool1/srcPool1Fs2@zipper_1982-02-01T00:00:02_testBackupSet | zfs receive backupPool1/srcPool1/srcPool1Fs2@zipper_1982-02-01T00:00:02_testBackupSet'])
+                             'zfs send -P srcPool1/srcPool1Fs2@zipper_1982-02-01T00:00:02_testBackupSet | zfs receive -F backupPool1/srcPool1/srcPool1Fs2@zipper_1982-02-01T00:00:02_testBackupSet'])
         self._assertRecorded(recorder,
                              ['1982-02-01T00:00:01	testBackupSet	backupPool1	full	srcPool1/srcPool1Fs1@zipper_1982-02-01T00:00:00_testBackupSet		backupPool1/srcPool1/srcPool1Fs1@zipper_1982-02-01T00:00:00_testBackupSet	50000		',
                               '1982-02-01T00:00:03	testBackupSet	backupPool1	full	srcPool1/srcPool1Fs2@zipper_1982-02-01T00:00:02_testBackupSet		backupPool1/srcPool1/srcPool1Fs2@zipper_1982-02-01T00:00:02_testBackupSet	50000		'])
+        self._assertZfs(zfs,
+                        ['pool: srcPool1',
+                         '  filesystem: srcPool1/srcPool1Fs1',
+                         '    snapshot: srcPool1/srcPool1Fs1@zipper_1982-02-01T00:00:00_testBackupSet',
+                         '  filesystem: srcPool1/srcPool1Fs2',
+                         '    snapshot: srcPool1/srcPool1Fs2@zipper_1982-02-01T00:00:02_testBackupSet',
+                         'pool: backupPool1',
+                         '  filesystem: backupPool1/srcPool1/srcPool1Fs1',
+                         '    snapshot: backupPool1/srcPool1/srcPool1Fs1@zipper_1982-02-01T00:00:00_testBackupSet',
+                         '  filesystem: backupPool1/srcPool1/srcPool1Fs2',
+                         '    snapshot: backupPool1/srcPool1/srcPool1Fs2@zipper_1982-02-01T00:00:02_testBackupSet',
+                         'pool: backupPool2'])
         del recorder
 
 def suite():

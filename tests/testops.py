@@ -27,10 +27,6 @@ def ensureFileDir(fname):
     else:
         return "."
 
-def deleteFiles(globPat):
-    for f in glob(globPat):
-        os.unlink(f)
-
 def runCmdStr(cmd, encoding="utf-8"):
     sys.stderr.write("run: " + " ".join(cmd) + "\n")
     stdflush()

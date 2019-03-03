@@ -74,7 +74,7 @@ class Zfs(object):
 
     def createFileSystem(self, fileSystemName):
         "create a new file system"
-        self.cmdRunner.call(["zfs", "create", fileSystemName])
+        self.cmdRunner.call(["zfs", "create", "-p", fileSystemName])
         return self.getFileSystem(fileSystemName)
 
     def listSnapshots(self, fileSystemSpec):
@@ -93,12 +93,10 @@ class Zfs(object):
     def createSnapshot(self, snapshotName):
         self.cmdRunner.call(["zfs", "snapshot", snapshotName])
 
-    def sendRecvFull(self, sourceSnapshotName, backupSnapshotName, allowOverwrite=False):
+    def sendRecvFull(self, sourceSnapshotName, backupSnapshotName):
         "return results of send -P parsed into rows of columns"
         sendCmd = ["zfs", "send", "-P", sourceSnapshotName]
-        recvCmd = ["zfs", "receive"]
-        if allowOverwrite:
-            recvCmd.append("-F")
+        recvCmd = ["zfs", "receive", '-F']
         recvCmd.append(backupSnapshotName)
         stderr1, ignored = self.cmdRunner.pipeline2(sendCmd, recvCmd)
         return splitTabLinesToRows(stderr1)

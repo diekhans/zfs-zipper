@@ -63,7 +63,7 @@ class BackupSnapshot(namedtuple("BackupSnapshot",
     def createCurrent(cls, backupsetName, fileSystem=None):
         "create using current timestamp."
         # Ouch, had the problem that the test cases ran so quickly that
-        # the one second resoltion of the time can result in snampshot name
+        # the one second resoltion of the time can result in snapname
         # collision. To address this, just sleep to force them to be unique.
         time.sleep(2)
         return cls(timestamp=currentGmtTimeStr(), backupsetName=backupsetName, oldSuffix=None,

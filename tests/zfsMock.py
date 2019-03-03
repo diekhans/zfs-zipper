@@ -96,6 +96,9 @@ class ZfsMock(object):
                 raise Exception("snapshots added out of order {} precedes existing {}".format(snapshot.name, existingSnapShotNames[-1]))
         fsNode.obtainChildNode(snapshot)  # add
 
+    def _recordAction(self, *args):
+        self.actions.append(" ".join(args))
+
     def dump(self, fh=sys.stderr):
         for poolNode in self.root.children.values():
             print("pool:", poolNode.entry.name, file=fh)
@@ -168,20 +171,21 @@ class ZfsMock(object):
         return fileSystem
 
     def createFileSystem(self, fileSystemName, mounted=True):
-        poolNode = self._fileSystemNameToPoolNode(fileSystemName)
+        poolNode = self._findPoolNodeByFileSystemName(fileSystemName)
         fsNode = poolNode.addChildNode(fakeZfsFileSystem(fileSystemName, mounted=mounted))
-        self.actions.append(("zfs", "create", fileSystemName))
+        self._recordAction("zfs", "create", fileSystemName)
         return fsNode.entry
 
     def createSnapshot(self, snapshotName):
         fsNode = self._findFileSystemNodeFromSnapshotName(snapshotName)
         fsNode.addChildNode(ZfsSnapshot(snapshotName))
-        self.actions.append(" ".join(("zfs", "snapshot", snapshotName)))
+        self._recordAction("zfs", "snapshot", snapshotName)
 
     def _recordSendRecv(self, sendCmd, recvCmd):
-        self.actions.append(" ".join(sendCmd) + " | " + " ".join(recvCmd))
+        cmd = sendCmd + ["|"] + recvCmd
+        self._recordAction(*cmd)
 
-    def sendRecvFull(self, sourceSnapshotName, backupSnapshotName, allowOverwrite=False):
+    def sendRecvFull(self, sourceSnapshotName, backupSnapshotName):
         # parse to check if they are valid
         ZfsSnapshot(sourceSnapshotName)
         if not self._findSnapshotByName(sourceSnapshotName):
@@ -191,9 +195,7 @@ class ZfsMock(object):
             raise Exception("sendRecvFull backup snapshot already exists: {}", backupSnapshotName)
 
         sendCmd = ["zfs", "send", "-P", sourceSnapshotName]
-        recvCmd = ["zfs", "receive"]
-        if allowOverwrite:
-            recvCmd.append("-F")  # FIXME: this is not right, see to-do.org
+        recvCmd = ["zfs", "receive", '-F']
         backupFsName = zfsSnapshotNameToFileSystemName(backupSnapshotName)
         if self._findFileSystemNodeByName(backupFsName) is None:
             self._addFileSystemByName(backupFsName)
