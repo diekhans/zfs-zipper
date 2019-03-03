@@ -1,39 +1,65 @@
 # -*- mode: makefile-gmake -*-
 PYTHON = python3
-
-libPyBaseFiles = __init__.py zfs.py config.py cmdrunner.py backup.py loggingops.py typeops.py
-libPyRelFiles = ${libPyBaseFiles:%=zfs-zipper/zfszipper/%}
-libPycRelFiles = ${libPyRelFiles:%=%c}
-libPycSrcFiles = ${libPycRelFiles:%=lib/%}
-sbinProgs = zfs-zipper
-etcFiles = zfs-zipper.conf.py
-periodicFiles=daily/100.zfs-zipper
-pyFiles = ${libPycSrcFiles} ${sbinProgs:%=sbin/%} ${etcFiles:%=etc/%}
-
+.SECONDARY:
 sys = $(shell uname -s)
+prefix = /usr/local
+sbinDir = ${prefix}/sbin
+libDir = ${prefix}/lib
+etcDir = ${prefix}/etc
 
-prefix=/usr/local
+libPyDir = lib/zfs-zipper/zfszipper
+libPyFiles = $(wildcard ${libPyDir}/*.py)
+libPycDir = ${libPyDir}/__pycache__
+sbinProgs = sbin/zfs-zipper
+etcFiles = etc/zfs-zipper.conf.py
+periodicFiles = etc/periodic/daily/100.zfs-zipper
+
+pycCompileDone = ${libPycDir}/.compile.done
+pycInstallDone = ${prefix}/${libPycDir}/.install.done
+
+
+installedFiles = ${libPyFiles:%=${prefix}/%} \
+	${libPycFiles:%=${prefix}/%} \
+	${sbinProgs:%=${prefix}/%} \
+	${etcFiles:%=${prefix}/%} \
+	${pycInstallDone}
 
 ifeq (${sys}, FreeBSD)
-  periodicInstalledFiles = ${periodicFiles:%=${periodicDir}/%}
+  installedFiles += ${periodicFiles:%=${prefix}/%}
 endif
 
-libDir = ${prefix}/lib
-sbinDir = ${prefix}/sbin
-etcDir = ${prefix}/etc
-periodicDir = /usr/local/etc/periodic
+uninstallDirs = ${libDir}/zfs-zipper
 
-installedFiles = ${libPyRelFiles:%=${libDir}/%} \
-	${libPycRelFiles:%=${libDir}/%} \
-	${sbinProgs:%=${sbinDir}/%} \
-	${etcFiles:%=${etcDir}/%} \
-	${periodicInstalledFiles}
+all: ${pycCompileDone}
 
+${pycCompileDone}: ${libPyFiles}
+	@mkdir -p $(dir $@)
+	PYTHONPATH=lib/zfs-zipper ${PYTHON} -B -c 'import compileall; compileall.compile_dir("${libPyDir}")'
+	touch $@
 
-uninstallDirs = ${libDir}/zfs-zipper/zfszipper ${libDir}/zfs-zipper
+clean:
+	rm -f ${libPycDir}
+	cd tests && ${MAKE} clean
 
-all: ${libPycSrcFiles}
+flake8: link
+lint:
+	${PYTHON} -m flake8 ${sbinProgs} lib tests
 
+test:
+	cd tests && ${MAKE} test
+
+ltest:
+	cd tests && ${MAKE} ltest
+
+vtest:
+	cd tests && ${MAKE} vtest
+
+vtestclean:
+	cd tests && ${MAKE} vtestclean
+
+####
+# install related
+####
 install: ${installedFiles}
 
 ${libDir}/%.py: lib/%.py
@@ -41,11 +67,11 @@ ${libDir}/%.py: lib/%.py
 	cp -f $< $@
 	chmod a+r,a-wx $@
 
-# make sure pyc is newer than py
-${libDir}/%.pyc: lib/%.pyc ${libDir}/%.py
-	@mkdir -p $(dir $@)
-	cp -f $< $@
-	chmod a+r,a-wx $@
+${pycInstallDone}: ${pycCompileDone}
+	@mkdir -p $(dir $@) ${prefix}/${libPycDir}
+	cp ${libPycDir}/* ${prefix}/${libPycDir}/
+	chmod a+r,a-wx ${prefix}/${libPycDir}/*
+	touch $@
 
 ${sbinDir}/%: sbin/%
 	@mkdir -p $(dir $@)
@@ -60,36 +86,12 @@ ${etcDir}/zfs-zipper.conf.py: etc/osprey.zfs-zipper.conf.py
 	cp -f $< $@
 	chmod a+r,a-wx $@
 
-${periodicDir}/%: etc/periodic/%
+${prefix}/etc/periodic/%: etc/periodic/%
 	@mkdir -p $(dir $@)
 	cp -f $< $@
 	chmod a+rx,a-w $@
 
-
-%.pyc: %.py
-	PYTHONPATH=lib/zfs-zipper ${PYTHON} -B -c 'import compileall;compileall.compile_file("$<")'
-
-clean:
-	rm -f ${libPycSrcFiles}
-	rm -rf lib/zfs-zipper/zfszipper/__pycache__
-	cd tests && ${MAKE} clean
-
-lint:
-	${PYTHON} -m flake8 sbin/zfs-zipper lib tests
-
 uninstall:
 	rm -f ${installedFiles}
-	rmdir ${uninstallDirs}
-
-test:
-	cd tests && ${MAKE} test
-
-ltest:
-	cd tests && ${MAKE} ltest
-
-vtest:
-	cd tests && ${MAKE} vtest
-
-vtestclean:
-	cd tests && ${MAKE} vtestclean
+	rm -rf ${uninstallDirs}
 
