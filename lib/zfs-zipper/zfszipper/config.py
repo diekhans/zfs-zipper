@@ -30,10 +30,11 @@ class BackupSetConf(object):
     """Configuration of a backup set.  A backup set consists of a set of file systems
     and a set of rotating backup pools use to backup those file systems.
     """
+
     def __init__(self, name, sourceFileSystemSpecs, backupPoolConfs):
         "sourceFileSystemSpecs can be ZFS file system names or SourceFileSystemConf objects"
-        if name.find('_') >= 0:  # used as a separator in snapshot names
-            raise BackupConfigError("backup set name may not contain `_': " + name)
+        if not name.isalnum():  # used as a separator in snapshot names
+            raise BackupConfigError("backup set name may only contain alpha-numeric characters, got '{}'".format(name))
         self.name = name
         self.sourceFileSystemConfs = self._buildSourceFileSystemConfs(sourceFileSystemSpecs)
         self.backupPoolConfs = tuple(backupPoolConfs)

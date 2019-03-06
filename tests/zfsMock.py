@@ -6,8 +6,9 @@ from zfszipper.zfs import ZfsPool, ZfsFileSystem, ZfsSnapshot
 from collections import OrderedDict
 from zfszipper.typeOps import asNameOrStr
 
-def zfsSnapshotNameToFileSystemName(snapshotName):
+def zfsSnapshotNameToFileSystemName(snapshotSpec):
     "convert a zfs snapshot name to a file system name"
+    snapshotName = asNameOrStr(snapshotSpec)
     parts = snapshotName.split('@', 1)
     if len(parts) != 2:
         raise Exception("can't parse file system name from snapshot name {}".format(snapshotName))
@@ -35,6 +36,11 @@ class ZfsMockNode(object):
         if entry.name in self.children:
             raise Exception("{} entry named {} already exists".format(type(entry), entry.name))
         return self.obtainChildNode(entry)
+
+    def delChildNodeByName(self, name):
+        if name not in self.children:
+            raise Exception("entry named {} does not exists".format(name))
+        del self.children[name]
 
     def obtainChildNode(self, entry):
         node = self.children.get(entry.name)
@@ -78,15 +84,15 @@ class ZfsMock(object):
                 self._addSnapshot(fsNode, snapshotSpec)
 
     def _addSnapshot(self, fsNode, snapshotSpec):
-        if isinstance(snapshotSpec, str):
-            if snapshotSpec.find('@') >= 0:
-                snapshot = ZfsSnapshot(snapshotSpec)
-            else:
-                snapshot = ZfsSnapshot.factory(fsNode.entry.name, snapshotSpec)
-        elif not isinstance(snapshotSpec, ZfsSnapshot):
-            raise Exception("snapshot not ZfsSnapshot: {} {}".format(type(snapshot), str(snapshot)))
-        else:
+        if isinstance(snapshotSpec, ZfsSnapshot):
             snapshot = snapshotSpec
+        else:
+            snapshotName = asNameOrStr(snapshotSpec)
+            if snapshotSpec.find('@') >= 0:
+                snapshot = ZfsSnapshot(snapshotName)
+            else:
+                snapshot = ZfsSnapshot.factory(fsNode.entry.name, snapshotName)
+
         if fsNode.findChildNode(snapshot.name) is not None:
             raise Exception("snapshot already exists: {}".format(snapshot.name))
         # make sure these are added in order
@@ -114,9 +120,9 @@ class ZfsMock(object):
         poolNode = self._findPoolNodeByFileSystemName(fileSystemName)
         poolNode.addChildNode(fakeZfsFileSystem(fileSystemName))
 
-    def _addSnapshotByName(self, snapshotName):
-        fsNode = self._findFileSystemNodeByName(zfsSnapshotNameToFileSystemName(snapshotName))
-        self._addSnapshot(fsNode, snapshotName)
+    def _addSnapshotByName(self, snapshotSpec):
+        fsNode = self._findFileSystemNodeByName(zfsSnapshotNameToFileSystemName(snapshotSpec))
+        self._addSnapshot(fsNode, snapshotSpec)
 
     def _findPoolNodeByFileSystemName(self, fileSystemName):
         poolName = zfsFileSystemNameToPoolName(fileSystemName)
@@ -132,14 +138,30 @@ class ZfsMock(object):
             return None
         return poolNode.children.get(fileSystemName)
 
-    def _findFileSystemNodeFromSnapshotName(self, snapshotName):
-        return self._findFileSystemNodeByName(zfsSnapshotNameToFileSystemName(snapshotName))
+    def _getFileSystemNodeByName(self, fileSystemName):
+        """error if not found"""
+        fsNode = self._findFileSystemNodeByName(fileSystemName)
+        if fsNode is None:
+            raise Exception("file system node not found: {}".format(fileSystemName))
+        return fsNode
 
-    def _findSnapshotByName(self, snapshotName):
-        fsNode = self._findFileSystemNodeFromSnapshotName(snapshotName)
+    def _findFileSystemNodeFromSnapshotName(self, snapshotSpec):
+        return self._findFileSystemNodeByName(zfsSnapshotNameToFileSystemName(snapshotSpec))
+
+    def _getFileSystemNodeFromSnapshotName(self, snapshotSpec):
+        return self._getFileSystemNodeByName(zfsSnapshotNameToFileSystemName(snapshotSpec))
+
+    def _findSnapshotByName(self, snapshotSpec):
+        fsNode = self._findFileSystemNodeFromSnapshotName(snapshotSpec)
         if fsNode is None:
             return None
-        return fsNode.findChildEntry(snapshotName)
+        return fsNode.findChildEntry(asNameOrStr(snapshotSpec))
+
+    def _getSnapshotByName(self, snapshotSpec):
+        snapshot = self._findSnapshotByName(snapshotSpec)
+        if snapshot is None:
+            raise Exception("snapshot node not found: {}".format(snapshotSpec))
+        return snapshot
 
     def listPools(self):
         return [n.entry for n in self.root.children.values()]
@@ -150,7 +172,7 @@ class ZfsMock(object):
 
     def listSnapshots(self, fileSystemSpec):
         "parameters can be names or zfs objects"
-        fsNode = self._findFileSystemNodeByName(asNameOrStr(fileSystemSpec))
+        fsNode = self._getFileSystemNodeByName(asNameOrStr(fileSystemSpec))
         return fsNode.getChildEntries()
 
     def listFileSystems(self, poolSpec):
@@ -176,17 +198,34 @@ class ZfsMock(object):
         self._recordAction("zfs", "create", fileSystemName)
         return fsNode.entry
 
-    def createSnapshot(self, snapshotName):
+    def createSnapshot(self, snapshotSpec):
+        fsNode = self._findFileSystemNodeFromSnapshotName(snapshotSpec)
+        fsNode.addChildNode(ZfsSnapshot(snapshotSpec))
+        self._recordAction("zfs", "snapshot", snapshotSpec)
+
+    def destroySnapshot(self, snapshotSpec):
+        snapshotName = asNameOrStr(snapshotSpec)
         fsNode = self._findFileSystemNodeFromSnapshotName(snapshotName)
-        fsNode.addChildNode(ZfsSnapshot(snapshotName))
-        self._recordAction("zfs", "snapshot", snapshotName)
+        fsNode.delChildNodeByName(snapshotName)
+        self._recordAction("zfs", "destroy", "-fp", snapshotName)
+        return (("destroy", snapshotName), ("reclaim", "50000"))
+
+    def renameSnapshot(self, oldSnapshotSpec, newSnapshotSpec):
+        oldSnapshot = self._getSnapshotByName(oldSnapshotSpec)
+        newSnapshot = ZfsSnapshot(asNameOrStr(newSnapshotSpec))
+        fsNode = self._findFileSystemNodeFromSnapshotName(oldSnapshot.name)
+        fsNode.delChildNodeByName(oldSnapshot.name)
+        fsNode.addChildNode(newSnapshot)
+        self._recordAction("zfs", "rename", oldSnapshot.name, newSnapshot.name)
 
     def _recordSendRecv(self, sendCmd, recvCmd):
         cmd = sendCmd + ["|"] + recvCmd
         self._recordAction(*cmd)
 
-    def sendRecvFull(self, sourceSnapshotName, backupSnapshotName):
+    def sendRecvFull(self, sourceSnapshotSpec, backupSnapshotSpec):
         # parse to check if they are valid
+        sourceSnapshotName = asNameOrStr(sourceSnapshotSpec)
+        backupSnapshotName = asNameOrStr(backupSnapshotSpec)
         ZfsSnapshot(sourceSnapshotName)
         if not self._findSnapshotByName(sourceSnapshotName):
             raise Exception("sendRecvFull source snapshot does not exist: {}", sourceSnapshotName)
@@ -204,8 +243,12 @@ class ZfsMock(object):
         self._recordSendRecv(sendCmd, recvCmd)
         return (("full", sourceSnapshotName, "50000"), ("size", "50000"))
 
-    def sendRecvIncr(self, sourceBaseSnapshotName, sourceSnapshotName, backupSnapshotName):
+    def sendRecvIncr(self, sourceBaseSnapshotSpec, sourceSnapshotSpec, backupSnapshotSpec):
         # parse to check if they are valid, check that base exists in backup
+        sourceBaseSnapshotName = asNameOrStr(sourceBaseSnapshotSpec)
+        sourceSnapshotName = asNameOrStr(sourceSnapshotSpec)
+        backupSnapshotName = asNameOrStr(backupSnapshotSpec)
+
         sourceBaseSnapshot = ZfsSnapshot(sourceBaseSnapshotName)
         if not self._findSnapshotByName(sourceBaseSnapshotName):
             raise Exception("sendRecvIncr source base snapshot does not exist: {}", sourceBaseSnapshotName)
@@ -217,7 +260,7 @@ class ZfsMock(object):
             raise Exception("sendRecvIncr backup snapshot already exists: {}", backupSnapshotName)
         backupBaseSnapshot = ZfsSnapshot.factory(backupSnapshot.fileSystem, sourceBaseSnapshot.snapName)
         if not self._findSnapshotByName(backupBaseSnapshot.name):
-            raise Exception("sendRecvIncr incremental base send snapshot for {} does not exist in received file system {}".format(backupBaseSnapshot.name, backupSnapshot.fileSystemName))
+            raise Exception("sendRecvIncr incremental base send snapshot for {} does not exist in received file system {}".format(backupBaseSnapshot.name, backupSnapshot.fileSystem))
         if sourceSnapshot.snapName <= sourceBaseSnapshot.snapName:
             raise Exception("sendRecvIncr incremental send snapshot {} is earlier than base {}".format(sourceSnapshot.name, sourceBaseSnapshot.name))
         sendCmd = ["zfs", "send", "-P", "-i", sourceBaseSnapshotName, sourceSnapshotName]

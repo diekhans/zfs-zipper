@@ -13,6 +13,7 @@ if os.uname()[0] == 'Darwin':
     from macVirtualZfs import zfsVirtualCreatePool, zfsVirtualCleanup
 else:
     from freeBsdVirtualZfs import zfsVirtualCreatePool, zfsVirtualCleanup
+from zfszipper.zfs import Zfs
 
 def writeConfigPy(testEtcDir, codeStr):
     ensureDir(testEtcDir)
@@ -28,7 +29,7 @@ class VirtualDiskTests(object):
     testPoolPrefix = "zfszipper_test"
     testBackupSetName = "testBackupSet"
     testSourcePoolName = testPoolPrefix + "_source"
-    testSourceFs1 = testSourcePoolName
+    testSourceFs1 = testSourcePoolName + "/fs1"
     testSourceFs2 = testSourcePoolName + "/fs2"
     testBackupPoolAName = testPoolPrefix + "_backupA"
     testBackupPoolBName = testPoolPrefix + "_backupB"
@@ -64,7 +65,7 @@ config = BackupConf([backupSetConf],
         ensureDir(self.testVarDir)
 
     def _createSourcePool(self):
-        sourcePool = zfsVirtualCreatePool(self.testRootDir, self.testSourcePoolName, [self.testSourceFs2])
+        sourcePool = zfsVirtualCreatePool(self.testRootDir, self.testSourcePoolName, [self.testSourceFs1, self.testSourceFs2])
         sourcePool.setup()
         sourcePool.createFileSystems()
         return sourcePool
@@ -76,7 +77,8 @@ config = BackupConf([backupSetConf],
         return backupPool
 
     def _writeFile(self, path, contents):
-        with open(path, "w") as fh:
+        "always appends so files an be modified"
+        with open(path, "a") as fh:
             fh.write(contents + "\n")
 
     def _writeTestFiles(self, pool, fileSystem, relFileNames, contentFunction=lambda x: x):
@@ -84,10 +86,8 @@ config = BackupConf([backupSetConf],
         for relFileName in relFileNames:
             self._writeFile(mountPoint + "/" + relFileName, contentFunction(relFileName))
 
-    def _runZfsZipper(self, configPy, *, allowOverwrite=False, backupSet=None, sourceFileSystems=None):
+    def _runZfsZipper(self, configPy, *, backupSet=None, sourceFileSystems=None):
         cmd = ["../sbin/zfs-zipper", configPy]
-        if allowOverwrite:
-            cmd.append("--allowOverwrite")
         if backupSet is not None:
             cmd.append("--backupSet=" + backupSet)
         if sourceFileSystems is not None:
@@ -118,6 +118,22 @@ config = BackupConf([backupSetConf],
         # try restriction arguments
         self._runZfsZipper(configPy, backupSet=self.testBackupSetName, sourceFileSystems=[self.testSourceFs1, self.testSourceFs2])
 
+    def _test1Incr3WithTmp(self, sourcePool, backupPool, configPy):
+        # seed backups
+        self._writeTestFiles(sourcePool, self.testSourceFs1, self.testSourceFs1Files[0:2], self._upcaseFunc)
+        self._writeTestFiles(sourcePool, self.testSourceFs2, self.testSourceFs2Files[2:2], self._upcaseFunc)
+        self._runZfsZipper(configPy, backupSet=self.testBackupSetName, sourceFileSystems=[self.testSourceFs1, self.testSourceFs2])
+
+        # get latest backup snapshot and rename to .tmp
+        zfs = Zfs()
+        backupFs = backupPool.poolName + "/" + self.testSourceFs1
+        backupSnapshots = zfs.listSnapshots(backupFs)
+        zfs.renameSnapshot(backupSnapshots[-1], backupSnapshots[-1].name + ".tmp")
+
+        # try again
+        self._writeTestFiles(sourcePool, self.testSourceFs2, self.testSourceFs2Files[2:2], self._upcaseFunc)
+        self._runZfsZipper(configPy, backupSet=self.testBackupSetName, sourceFileSystems=[self.testSourceFs1, self.testSourceFs2])
+
     def FIXME_test1FullOverwriteFail(self, sourcePool, backupPool, configPy):
         ok = False
         try:
@@ -143,6 +159,9 @@ config = BackupConf([backupSetConf],
         # incrementals
         self._test1Incr1(sourcePool, backupPoolA, configPy)
         self._test1Incr2(sourcePool, backupPoolA, configPy)
+
+        # fake a failed run with tmp snapshot on backup
+        self._test1Incr3WithTmp(sourcePool, backupPoolA, configPy)
 
         # attempt at overwriting
         # FIXME: self._test1FullOverwriteFail(sourcePool, backupPoolA, configPy)

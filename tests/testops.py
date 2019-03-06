@@ -5,7 +5,6 @@ import os
 import sys
 import subprocess
 import errno
-from glob import glob
 from collections import namedtuple
 from zfszipper.cmdrunner import ProcessError, stdflush
 

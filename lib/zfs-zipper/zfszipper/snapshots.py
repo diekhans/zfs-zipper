@@ -11,12 +11,21 @@ logger = logging.getLogger()
 
 class BackupSnapshot(namedtuple("BackupSnapshot",
                                 ("fileSystemName", "timestamp",
-                                 "backupsetName", "oldSuffix"))):
+                                 "backupsetName", "oldSuffix",
+                                 "isTmp"))):
     """Parsed backup snapshot name.  Use create methods, not constructor.
     The oldSuffix is an old style _incr or _full and are no longer created,
-    but still parsed."""
+    but still parsed.  Note, create functions create these objects, not the
+    actually templates.
+
+    If zfs terminology the name of the snapshot includes the file system
+    the name without it is the snapname, which is out backupsetName.
+    """
+    # FIXME: terminology is still confusing with much of the code used
+    # snapshotName rather than backupsetName
     __slots__ = ()
-    # backup set names may name contain `_',
+    # backup set names may name contain `_',  .tmp extensions are added while
+    # being created.
     nameForm = "zipper_<GMT>_<backupset>"
     oldFullForm = "zipper_<GMT>_<backupset>_full"
     oldIncrForm = "zipper_<GMT>_<backupset>_incr"
@@ -24,40 +33,56 @@ class BackupSnapshot(namedtuple("BackupSnapshot",
 
     prefix = "zipper_"
     gmt = "[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}"
-    snapshotNameRe = re.compile("^{prefix}({gmt})_(.+)(_incr|_full)?$".format(prefix=prefix, gmt=gmt))
+    snapshotNameRe = re.compile("^{prefix}({gmt})_([^.]+)(_incr|_full)?(\\.tmp)?$".format(prefix=prefix, gmt=gmt))
 
-    def getSnapshotName(self):
+    @property
+    def name(self):
+        "this makes in this behave like the zfs wrapper objects"
+        return self.getSnapshotName()
+
+    def getSnapName(self, excludeTmpExt=False):
         "construct name without FS"
         name = self.prefix + self.timestamp + "_" + self.backupsetName
         if self.oldSuffix is not None:
             name += "_" + self.oldSuffix
+        if self.isTmp and (not excludeTmpExt):
+            name += ".tmp"
         return name
 
-    def getFileSystemSnapshotName(self):
+    def getSnapshotName(self):
         "construct name with FS"
         if self.fileSystemName is None:
-            return self.getSnapshotName()
+            return self.getSnapName()
         else:
-            return self.fileSystemName + "@" + self.getSnapshotName()
+            return self.fileSystemName + "@" + self.getSnapName()
 
     @classmethod
     def createFromSnapshotName(cls, snapshotNameSpec, dropFileSystem=False, requireFileSystem=False):
         "Keep file systems name, unless drop specified"
         fileSystemName, snapshotName = cls.splitZfsSnapshotName(snapshotNameSpec)
-        timestamp, backupsetName, oldSuffix = cls._parseSnapshotName(snapshotName)
+        timestamp, backupsetName, oldSuffix, isTmp = cls._parseSnapshotName(snapshotName)
         if requireFileSystem and (fileSystemName is None):
             raise Exception("file system name requred in snapshopt: {}".format(snapshotNameSpec))
         if dropFileSystem:
             fileSystemName = None
         if fileSystemName is not None:
             fileSystemName = os.path.normpath(fileSystemName)
-        return cls(fileSystemName=fileSystemName, timestamp=timestamp, backupsetName=backupsetName, oldSuffix=oldSuffix)
+        return cls(fileSystemName=fileSystemName, timestamp=timestamp, backupsetName=backupsetName, oldSuffix=oldSuffix, isTmp=isTmp)
 
-    @classmethod
-    def createFromSnapshot(cls, snapshot, fileSystem=None):
+    def createFromSnapshot(self, fileSystem=None):
         "create from another snapshot, excluding file system, but possible setting a new one"
-        return cls(fileSystemName=asNameStrOrNone(fileSystem),
-                   timestamp=snapshot.timestamp, backupsetName=snapshot.backupsetName, oldSuffix=snapshot.oldSuffix)
+        return BackupSnapshot(fileSystemName=asNameStrOrNone(fileSystem),
+                              timestamp=self.timestamp, backupsetName=self.backupsetName, oldSuffix=self.oldSuffix, isTmp=self.isTmp)
+
+    def createTmpSnapshot(self):
+        "create from this snapshot, with isTmp flag set"
+        return BackupSnapshot(fileSystemName=self.fileSystemName,
+                              timestamp=self.timestamp, backupsetName=self.backupsetName, oldSuffix=self.oldSuffix, isTmp=True)
+
+    def createFinalSnapshot(self):
+        "create from this snapshot, with isTmp flag cleared"
+        return BackupSnapshot(fileSystemName=self.fileSystemName,
+                              timestamp=self.timestamp, backupsetName=self.backupsetName, oldSuffix=self.oldSuffix, isTmp=True)
 
     @classmethod
     def createCurrent(cls, backupsetName, fileSystem=None):
@@ -67,10 +92,10 @@ class BackupSnapshot(namedtuple("BackupSnapshot",
         # collision. To address this, just sleep to force them to be unique.
         time.sleep(2)
         return cls(timestamp=currentGmtTimeStr(), backupsetName=backupsetName, oldSuffix=None,
-                   fileSystemName=asNameStrOrNone(fileSystem))
+                   fileSystemName=asNameStrOrNone(fileSystem), isTmp=False)
 
     def __str__(self):
-        return self.getFileSystemSnapshotName()
+        return self.getSnapshotName()
 
     @classmethod
     def splitZfsSnapshotName(cls, snapshotName):
@@ -94,7 +119,8 @@ class BackupSnapshot(namedtuple("BackupSnapshot",
         timestr = parse.group(1)
         backupSetName = parse.group(2)
         oldSuffix = parse.group(3)
-        return (timestr, backupSetName, oldSuffix)
+        isTmp = parse.group(4) is not None
+        return (timestr, backupSetName, oldSuffix, isTmp)
 
     @classmethod
     def isZipperSnapshot(cls, snapshotName):
@@ -104,31 +130,39 @@ class BackupSnapshot(namedtuple("BackupSnapshot",
 
 def asSnapshotName(snapshotSpec):
     """spec can get be a name of a BackupSnapshot, return the name (less FS)"""
-    return snapshotSpec if isinstance(snapshotSpec, str) else snapshotSpec.getSnapshotName()
+    return snapshotSpec if isinstance(snapshotSpec, str) else snapshotSpec.getSnapName()
 
 class BackupSnapshots(list):
     "list of snapshots objects from a file system, ordered from newest to oldest"
     def __init__(self, zfs, fileSystem=None):
+        self.tmpSnapshots = []
         if fileSystem is not None:
             self._loadSnapshots(zfs, fileSystem)
 
+    def _loadSnapshot(self, zfs, zfsSnapshot):
+        if BackupSnapshot.isZipperSnapshot(zfsSnapshot.name):
+            snapshot = BackupSnapshot.createFromSnapshotName(zfsSnapshot.name)
+            if snapshot.isTmp:
+                self.tmpSnapshots.append(snapshot)
+            else:
+                self.append(snapshot)
+
     def _loadSnapshots(self, zfs, fileSystem):
         for zfsSnapshot in zfs.listSnapshots(fileSystem.name):
-            if BackupSnapshot.isZipperSnapshot(zfsSnapshot.name):
-                self.append(BackupSnapshot.createFromSnapshotName(zfsSnapshot.name))
+            self._loadSnapshot(zfs, zfsSnapshot)
         self.sort(key=lambda s: s.timestamp, reverse=True)
 
     def findNewestCommon(self, otherSnapshots):
         "return newest command snapshot in self that is also in otherSnapshots"
         for snapshot in self:
-            if otherSnapshots.find(snapshot.getSnapshotName()) is not None:
+            if otherSnapshots.find(snapshot.getSnapName()) is not None:
                 return snapshot
         return None
 
     def findIdx(self, snapshotSpec):
         snapshotName = asSnapshotName(snapshotSpec)
         for idx in range(len(self)):
-            if self[idx].getSnapshotName() == snapshotName:
+            if self[idx].getSnapName() == snapshotName:
                 return idx
         return -1
 

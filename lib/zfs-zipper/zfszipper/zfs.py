@@ -90,11 +90,20 @@ class Zfs(object):
         "export specified pool"
         self.cmdRunner.call(["zpool", "export", asNameOrStr(poolSpec)])
 
-    def createSnapshot(self, snapshotName):
-        self.cmdRunner.call(["zfs", "snapshot", snapshotName])
+    def createSnapshot(self, snapshotSpec):
+        self.cmdRunner.call(["zfs", "snapshot", asNameOrStr(snapshotSpec)])
 
-    def sendRecvFull(self, sourceSnapshotName, backupSnapshotName):
+    def destroySnapshot(self, snapshotSpec):
+        return self.cmdRunner.callTabSplit(["zfs", "destroy", "-fp", asNameOrStr(snapshotSpec)])
+
+    def renameSnapshot(self, oldSnapshotSpec, newSnapshotSpec):
+        self.cmdRunner.call(["zfs", "rename", asNameOrStr(oldSnapshotSpec), asNameOrStr(newSnapshotSpec)])
+
+    def sendRecvFull(self, sourceSnapshotSpec, backupSnapshotSpec):
         "return results of send -P parsed into rows of columns"
+        sourceSnapshotName = asNameOrStr(sourceSnapshotSpec)
+        backupSnapshotName = asNameOrStr(backupSnapshotSpec)
+
         sendCmd = ["zfs", "send", "-P", sourceSnapshotName]
         recvCmd = ["zfs", "receive", '-F']
         recvCmd.append(backupSnapshotName)
