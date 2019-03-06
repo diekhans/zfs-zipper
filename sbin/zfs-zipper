@@ -71,7 +71,7 @@ def parseCommand():
     parser.add_argument("--backupSet", metavar="name", dest="backupSetName",
                         help="""Backup only this set.  If not specified, all sets in config file are backed up.""")
     parser.add_argument("--sourceFileSystem", metavar="name", dest="sourceFileSystemNames", action="append",
-                        help="""Backup only this ZFS file system (not mount point).   Must specify --backUpSet. This option maybe repeated.""")
+                        help="""Backup only this ZFS file system (not mount point).   Must specify --backupSet. This option maybe repeated.""")
     # parser.add_argument("--baseSnapshot", dest="baseSnapshots", metavar="fs@snapshot", action="append",
     #                     help="""If specified, this is the existing snapshot on the source file
     #                     system where the backup should begin.   The snapshot must not exists of the backup.
