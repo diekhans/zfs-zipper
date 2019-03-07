@@ -32,6 +32,9 @@ def runCmdStr(cmd, encoding="utf-8"):
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding=encoding)
     stdout, stderr = process.communicate()
     stdflush()
+    if isinstance(stderr, bytes):
+        stderr = stderr.decode(errors='replace')
+    sys.stderr.write(stderr)
     if process.returncode != 0:
         raise ProcessError(process.returncode, cmd, stderr)
     return stdout

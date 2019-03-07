@@ -17,4 +17,4 @@ osprey1Set = BackupSetConf("osprey1",
 config = BackupConf([osprey1Set],
                     lockFile="/var/run/zfszipper.lock",
                     recordFilePattern="/var/db/zfszipper/%Y/%Y-%m.record.tsv",
-                    syslogFacility=None)
+                    syslogFacility="local0")

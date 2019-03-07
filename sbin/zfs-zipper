@@ -175,12 +175,16 @@ class Backup(object):
             self._backupOneSet(backupSetConf, self.sourceFileSystemNames)
 
 def main(args):
-    if args.verboseLevel is not None:
-        loggingOps.setupStderrLogger(args.verboseLevel)
+    someLogging = False
     if args.config.syslogFacility is not None:
         loggingOps.setupSyslogLogger(args.config.syslogFacility, args.config.syslogLevel, prog=os.path.basename(sys.argv[0]))
-    if (args.verboseLevel is None) and (args.config.syslogFacility is None):
-        loggingOps.setupNullLogger()
+        someLogging = True
+    if args.verboseLevel is not None:
+        loggingOps.setupStderrLogger(args.verboseLevel)
+        someLogging = True
+    # if no logging is explicitly setup, we need to send messages somewhere
+    if not someLogging:
+        loggingOps.setupStderrLogger(logging.ERROR if args.verboseLevel is None else args.verboseLevel)
 
     backup = Backup(args)
     try:

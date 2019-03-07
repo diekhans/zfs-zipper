@@ -98,7 +98,7 @@ class BackupSetConf(object):
 class BackupConf(object):
     "Configuration of backups"
     def __init__(self, backupSets, lockFile="/var/run/zfszipper.lock", recordFilePattern=None,
-                 syslogFacility=None, syslogLevel="info"):
+                 syslogFacility=None, syslogLevel="info", stderrLogging=False):
         """
         lockFile - lock file to use, defaults to /var/run/zfszipper.lock
         recordFilePattern - Pattern used to create TSV record file of backups.  Formatted with strftime with current GMT to make a file path
@@ -110,6 +110,7 @@ class BackupConf(object):
         self.recordFile = time.strftime(recordFilePattern, time.gmtime()) if recordFilePattern is not None else None
         self.syslogFacility = loggingOps.parseFacility(syslogFacility) if syslogFacility is not None else None
         self.syslogLevel = loggingOps.parseLevel(syslogLevel)
+        self.stderrLogging = stderrLogging
 
     def getBackupSet(self, backupSetName):
         for backupSet in self.backupSets:
