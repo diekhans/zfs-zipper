@@ -65,7 +65,7 @@ dd if=/dev/zero of=/dev/XX1 bs=1m count=128
   zfs list
 * list snapshots
 zfs list -r -t snapshot zfszipper_test_source
-
+zfs list -ro space <pool>?
 * bring online
    sudo zpool import osprey_backup?
    sudo zfs mount osprey_backup?

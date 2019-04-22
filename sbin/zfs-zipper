@@ -68,37 +68,20 @@ def parseCommand():
     parser.add_argument("configPy", default=defaultConfig, nargs='?',
                         help="""Configuration file written in Python.  It should do a `from zfszipper.config import *'
                         and then create an instance of BackupConf() stored in a module-global variable `config'.""")
-    parser.add_argument("--backupSet", metavar="name", dest="backupSetName",
-                        help="""Backup only this set.  If not specified, all sets in config file are backed up.""")
     parser.add_argument("--sourceFileSystem", metavar="name", dest="sourceFileSystemNames", action="append",
                         help="""Backup only this ZFS file system (not mount point).   Must specify --backupSet. This option maybe repeated.""")
-    # parser.add_argument("--baseSnapshot", dest="baseSnapshots", metavar="fs@snapshot", action="append",
-    #                     help="""If specified, this is the existing snapshot on the source file
-    #                     system where the backup should begin.   The snapshot must not exists of the backup.
-    #                     This maybe repeated for multiple file systems. This will disable default backups,
-    #                     to prevent errors. [NOT IMPLEMENTED}""")
     parser.add_argument("--verboseLevel", metavar="logLevel", dest="verboseLevel", action="store", default="error",
                         help="""syslog style level name for logging to stderr""")
+    parser.add_argument("backupSetName", default=None,
+                        help="""Backup only this set.  If not specified, all sets in config file are backed up.""")
     args = parser.parse_args()
     setattr(args, "config", evalConfigFile(args.configPy))
     if args.verboseLevel is not None:
         args.verboseLevel = loggingOps.parseLevel(args.verboseLevel)
     if args.sourceFileSystemNames is not None:
         args.sourceFileSystemNames = [os.path.normpath(fs) for fs in args.sourceFileSystemNames]
-    # if args.baseSnapshots is not None:
-    #     parser.error("--naseSnapshot is not yet implemented")
-    #     args.baseSnapshots = [BackupSnapshot.createFromSnapshotName(fb, requireFileSystem=True) for fb in args.baseSnapshots]
-    #     checkDupBaseSnapshots(parser, args.baseSnapshots)
     checkBackupSubsetArgs(parser, args)
     return args
-
-def checkDupBaseSnapshots(parser, baseSnapshots):
-    # NOT CURRENTLY USED OR TESTED
-    found = set()
-    for baseSnapshot in baseSnapshots:
-        if baseSnapshot.fileSystemName in found:
-            parser.error("file system {} from specified in multiple --baseSnapshot arguments".format(baseSnapshot.fileSystemName, baseSnapshot))
-        found.add(baseSnapshot.fileSystemName)
 
 def checkBackupSubsetArgs(parser, args):
     if (args.sourceFileSystemNames is not None) and (args.backupSetName is None):
@@ -117,7 +100,6 @@ class Backup(object):
         self.zfs = Zfs()
         self.backupSetName = args.backupSetName
         self.sourceFileSystemNames = tuple(args.sourceFileSystemNames) if args.sourceFileSystemNames is not None else None
-        # FIXME self.baseSnapshotMap = self._partitionBaseSnapshots(args.baseSnapshots)
         self.lockFh = None
 
     def _getActiveBackupSets(self):
@@ -125,35 +107,6 @@ class Backup(object):
             return (self.config.getBackupSet(self.backupSetName),)
         else:
             return self.config.backupSets
-
-    def _partitionBaseSnapshot(self, baseSnapshot, fsBaseSnapshotMap):
-        "Add mapping of fs name to baseSnapshot.  Check that FS is in one and only one of the backsets"
-        # NOT CURRENTLY USED OR TESTED
-        if (self.sourceFileSystemNames is not None) and (baseSnapshot.fileSystemName not in self.sourceFileSystemNames):
-            raise Exception("file system {} from baseSnapshot {} not in restricted set of file systems {}"
-                            .format(baseSnapshot.fileSystemName, baseSnapshot, self.sourceFileSystemNames))
-
-        baseSnapshotMap = {}
-        for backupSetConf in self._getActiveBackupSets():
-            fs = backupSetConf.findSourceFileSystem(baseSnapshot.fileSystemName)
-            if fs is not None:
-                if fs.fileSystemName in baseSnapshotMap:
-                    raise Exception("file system {} from baseSnapshot {} found in multiple backupsets, must restrict to one backup set to use this feature"
-                                    .format(baseSnapshot.fileSystemName, baseSnapshot))
-                baseSnapshotMap[baseSnapshot.fileSystemName] = baseSnapshot
-        if baseSnapshot.fileSystemName not in baseSnapshotMap:
-            raise Exception("file system {} from baseSnapshot {} found in any of the backupset or the one configured on the command line"
-                            .format(baseSnapshot.fileSystemName, baseSnapshot))
-
-    def _partitionBaseSnapshots(self, baseSnapshots):
-        """partition list of bases snapshots by file system and ensure both
-        file system and snapshot exist."""
-        # NOT CURRENTLY USED OR TESTED
-        baseSnapshotMap = {}
-        if baseSnapshots is not None:
-            for baseSnapshot in baseSnapshots:
-                self._partitionBaseSnapshot(baseSnapshot, baseSnapshotMap)
-        return baseSnapshotMap
 
     def __obtainLock(self):
         self.lockFh = open(self.config.lockFile, "w")
