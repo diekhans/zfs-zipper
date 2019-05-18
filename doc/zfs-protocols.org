@@ -13,13 +13,22 @@
     # to enable standby:
        sudo camcontrol standby ?:0:0 -t 60
 
+* disk info on mac
+# get mapping to disk devices
+diskutil list
+# list info for disk-info.tsv
+smartctl -i /dev/disk0
 * ZFS documentations
    ZFS Cheatsheet  http://www.datadisk.co.uk/html_docs/sun/sun_zfs_cs.htm
 
 
+* Notes
+  zfs set com.apple.mimic_hfs=on
+doesn't actually help with lightroom import
+
 * initializing a zfs RAID-1 pool backup disk
 # make mirrrored pool, specify -f if it is used
-zpool create -O atime=off -O compression=lz4 -O dedup=on -m /media/zackup1 osprey_zackup1a mirror disk0 disk1
+zpool create -O atime=off -O compression=lz4 -O dedup=off -m /media/zackup1 osprey_zackup1a mirror disk? disk??
 # verify it is configured as RAID 0
 zpool status osprey_zackup1a
 
@@ -37,10 +46,6 @@ dd if=/dev/zero of=/dev/XX1 bs=1m count=128
 * clear labels on disk so it can be reused in a new pool
     zpool labelclear /dev/ada?
 
-* create mirrored pool
-  zpool create -O atime=off -O compression=lz4 -O dedup=on -m /media/zackup1 osprey_zackup1a mirror disk6 disk7
-  zpool list
-  zpool status
 
 * pool I/O is currently suspended error
     zpool clear $pool
@@ -83,3 +88,6 @@ zpool status -v
 
 * first backup
     (sudo /opt/sbin/zfs-zipper --full /opt/etc/zfs-zipper.conf.py 2>&1 | mail -s "ZFS Zipper daily backup: $(hostname)" root)</dev/null &
+* information
+- version being run:
+   sysctl -a | grep kext
