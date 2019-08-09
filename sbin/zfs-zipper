@@ -145,7 +145,7 @@ def main(args):
     except Exception as ex:
         stdflush()
         logger.exception("zfs-zipper backup of failed")
-        sys.stderr.write("error: " + str(ex) + " (specify --verboseLevel=error for more details)\n")
+        sys.stderr.write("error: " + str(ex) + " (specify --verboseLevel=debug for more details)\n")
         sys.exit(1)
 
     logger.info("zfs-zipper backup of complete")
