@@ -15,8 +15,8 @@ class BackupSnapshot(namedtuple("BackupSnapshot",
                                  "isTmp"))):
     """Parsed backup snapshot name.  Use create methods, not constructor.
     The oldSuffix is an old style _incr or _full and are no longer created,
-    but still parsed.  Note, create functions create these objects, not the
-    actually templates.
+    but still parsed.  Note, create functions create these BackupSnapshot
+    objects, but not the actually snapshot.
 
     If zfs terminology the name of the snapshot includes the file system
     the name without it is the snapname, which is out backupsetName.

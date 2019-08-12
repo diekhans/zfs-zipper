@@ -87,13 +87,13 @@ config = BackupConf([backupSetConf],
             self._writeFile(mountPoint + "/" + relFileName, contentFunction(relFileName))
 
     def _runZfsZipper(self, configPy, *, backupSet=None, sourceFileSystems=None):
-        cmd = ["../sbin/zfs-zipper", configPy]
-        if backupSet is not None:
-            cmd.append("--backupSet=" + backupSet)
+        cmd = ["../sbin/zfs-zipper", "--conf={}".format(configPy)]
         if sourceFileSystems is not None:
             cmd.extend(["--sourceFileSystem=" + fs for fs in sourceFileSystems])
         if self.zipperLogLevel is not None:
             cmd.append("--verboseLevel=" + self.zipperLogLevel)
+        if backupSet is not None:
+            cmd.append(backupSet)
         runCmd(cmd)
 
     @staticmethod

@@ -65,14 +65,14 @@ def parseCommand():
     usage = """Run a backup from ZFS source pools to back source pools.
     """
     parser = argparse.ArgumentParser(description=usage)
-    parser.add_argument("configPy", default=defaultConfig, nargs='?',
+    parser.add_argument("--conf", default=defaultConfig, dest="configPy",
                         help="""Configuration file written in Python.  It should do a `from zfszipper.config import *'
                         and then create an instance of BackupConf() stored in a module-global variable `config'.""")
     parser.add_argument("--sourceFileSystem", metavar="name", dest="sourceFileSystemNames", action="append",
                         help="""Backup only this ZFS file system (not mount point).   Must specify --backupSet. This option maybe repeated.""")
     parser.add_argument("--verboseLevel", metavar="logLevel", dest="verboseLevel", action="store", default="error",
                         help="""syslog style level name for logging to stderr""")
-    parser.add_argument("backupSetName", default=None,
+    parser.add_argument("backupSetName", default=None, nargs='?',
                         help="""Backup only this set.  If not specified, all sets in config file are backed up.""")
     args = parser.parse_args()
     setattr(args, "config", evalConfigFile(args.configPy))
