@@ -36,7 +36,7 @@ zpool status osprey_zackup1a
 pmset -a disksleep 10
 
 # can do this to kill the header if needed
-dd if=/dev/zero of=/dev/XX1 bs=1m count=128
+dd if=/dev/zero of=/dev/XX bs=1m count=128
 
 
 * discovering pool status
