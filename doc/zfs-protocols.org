@@ -93,3 +93,5 @@ zpool status -v
    sysctl -a | grep kext
 * cannot export XXX': pool I/O is currently suspended
 sudo zpool clear -nFX  XXX
+
+
