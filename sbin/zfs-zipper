@@ -77,7 +77,9 @@ def parseCommand():
     parser.add_argument("--verboseLevel", metavar="logLevel", dest="verboseLevel", action="store", default="error",
                         help="""syslog style level name for logging to stderr""")
     parser.add_argument("--snapOnly", dest="snapOnly", action="store_true", default=False,
-                        help="""Only create source snapshots don't backup to disk.  They will be backed up on the next real backup/""")
+                        help="""Only create source snapshots don't backup to disk.  They will be backed up on the next real backup.""")
+    parser.add_argument("--list", dest="listSets", action="store_true", default=False,
+                        help="""List backup sets""")
     parser.add_argument("backupSetName", default=None, nargs='?',
                         help="""Backup only this set.  If not specified, all sets in config file are backed up.""")
     args = parser.parse_args()
@@ -137,7 +139,7 @@ class Backup(object):
         for backupSetConf in self._getActiveBackupSets():
             self._backupOneSet(backupSetConf, self.sourceFileSystemNames)
 
-def main(args):
+def setupLogging(args):
     someLogging = False
     if args.config.syslogFacility is not None:
         loggingOps.setupSyslogLogger(args.config.syslogFacility, args.config.syslogLevel, prog=os.path.basename(sys.argv[0]))
@@ -149,6 +151,8 @@ def main(args):
     if not someLogging:
         loggingOps.setupStderrLogger(logging.ERROR if args.verboseLevel is None else args.verboseLevel)
 
+def doBackup(args):
+    setupLogging()
     backup = Backup(args.config, args.backupSetName, args.sourceFileSystemNames, args.snapOnly)
     try:
         backup.runBackups()
@@ -159,5 +163,12 @@ def main(args):
         sys.exit(1)
 
     logger.info("zfs-zipper backup of complete")
+
+def main(args):
+    if args.listSets:
+        args.config.listBackupSets(sys.stdout)
+    else:
+        doBackup(args)
+
 
 main(parseCommand())

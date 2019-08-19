@@ -126,3 +126,14 @@ class BackupConf(object):
             if fs is not None:
                 backupSets.append(fs)
         return backupSets
+
+    def _listBackupSet(self, backupSet, fh):
+        print("backup set:", backupSet.name, file=fh)
+        for backupPool in backupSet.byBackupPoolName.values():
+            print("\tbackup pool:", backupPool.name, file=fh)
+        for sourceFs in backupSet.sourceFileSystemConfs:
+            print("\tsource fs:", sourceFs.name, file=fh)
+
+    def listBackupSets(self, fh):
+        for backupSet in self.backupSets:
+            self._listBackupSet(backupSet, fh)
