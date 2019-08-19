@@ -74,7 +74,7 @@ def parseCommand():
                         and then create an instance of BackupConf() stored in a module-global variable `config'.""")
     parser.add_argument("--sourceFileSystem", metavar="name", dest="sourceFileSystemNames", action="append",
                         help="""Backup only this ZFS file system (not mount point).   Must specify --backupSet. This option maybe repeated.""")
-    parser.add_argument("--verboseLevel", metavar="logLevel", dest="verboseLevel", action="store", default="error",
+    parser.add_argument("--verboseLevel", metavar="logLevel", dest="verboseLevel", action="store", default="info",
                         help="""syslog style level name for logging to stderr""")
     parser.add_argument("--snapOnly", dest="snapOnly", action="store_true", default=False,
                         help="""Only create source snapshots don't backup to disk.  They will be backed up on the next real backup.""")
@@ -104,7 +104,7 @@ class Backup(object):
     "controls overall backup from args"
     def __init__(self, config, backupSetName, sourceFileSystemNames, snapOnly):
         self.config = config
-        self.recorder = BackupRecorder(self.config.recordFile, sys.stdout)
+        self.recorder = None if snapOnly else BackupRecorder(self.config.recordFile, sys.stdout)
         self.zfs = Zfs()
         self.backupSetName = backupSetName
         self.sourceFileSystemNames = tuple(sourceFileSystemNames) if sourceFileSystemNames is not None else None
