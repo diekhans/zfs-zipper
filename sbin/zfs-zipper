@@ -152,7 +152,7 @@ def setupLogging(args):
         loggingOps.setupStderrLogger(logging.ERROR if args.verboseLevel is None else args.verboseLevel)
 
 def doBackup(args):
-    setupLogging()
+    setupLogging(args)
     backup = Backup(args.config, args.backupSetName, args.sourceFileSystemNames, args.snapOnly)
     try:
         backup.runBackups()
