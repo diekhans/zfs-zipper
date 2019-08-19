@@ -15,36 +15,36 @@ class ZfsLocalSystemTest(unittest.TestCase):
     def assertStrCountMin(self, dump, substr, minCount):
         cnt = dump.count(substr)
         if cnt < minCount:
-            msg = "ZFS dump didn't have at least {} occurrences of >{}<\n".format((minCount, substr))
+            msg = "ZFS dump didn't have at least {} occurrences of >{}<\n".format(minCount, substr)
             sys.stderr.write(msg + "\n")
             sys.stderr.write(dump)
             self.fail(msg)
 
-    def __zfsLoadFileSystem(self, zfs, fileSystem):
+    def _zfsLoadFileSystem(self, zfs, fileSystem):
         descs = []
         descs.append("  filesystem: " + str(fileSystem))
         for snapshot in zfs.listSnapshots(fileSystem.name):
             descs.append("    snapshot: " + " ".join(snapshot))
         return descs
 
-    def __zfsLoadPool(self, zfs, pool):
+    def _zfsLoadPool(self, zfs, pool):
         descs = []
         descs.append("pool: " + str(pool))
         for fileSystem in zfs.listFileSystems(pool.name):
-            descs.extend(self.__zfsLoadFileSystem(zfs, fileSystem))
+            descs.extend(self._zfsLoadFileSystem(zfs, fileSystem))
         return descs
 
-    def __zfsLoad(self, zfs):
+    def _zfsLoad(self, zfs):
         descs = []
         for pool in zfs.listPools():
-            descs.extend(self.__zfsLoadPool(zfs, pool))
+            descs.extend(self._zfsLoadPool(zfs, pool))
         return "\n".join(descs) + "\n"
 
     def testPoolsLoad(self):
-        descs = self.__zfsLoad(zfs.Zfs())
+        descs = self._zfsLoad(zfs.Zfs())
         if debug:
             print(descs, file=sys.stderr)
-        self.assertStrCountMin(descs, "pool", 2)
+        self.assertStrCountMin(descs, "pool", 1)  # kettle
         self.assertStrCountMin(descs, "filesystem", 5)
         self.assertStrCountMin(descs, "snapshot", 10)
 

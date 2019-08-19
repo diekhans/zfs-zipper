@@ -26,8 +26,11 @@ zfsLocalSystemTests:
 vtest:
 	 sudo ${PYTHON} virtualDiskTests.py test
 
+vtestnoclean:
+	 sudo ${PYTHON} virtualDiskTests.py test
+
 vtestclean:
-	 sudo ${PYTHON} virtualDiskTests.py clean
+	 sudo ${PYTHON} virtualDiskTests.py --noClean clean
 
 clean: vtestclean
 	rm -rf __pycache__

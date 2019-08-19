@@ -28,8 +28,12 @@ If there are not zfs-zipper snapshots on the backup file system,
 all snapshots are copied.  If there are zfs-zipper snapshots, but
 no common ones, it is currently an error.
 
+This has also been used to clone all backups to a new file system.
+
 Other features maybe added in the future to adjust starting snapshot
 to allow for omitting deleted data.
+
+
 
 """
 
@@ -72,6 +76,8 @@ def parseCommand():
                         help="""Backup only this ZFS file system (not mount point).   Must specify --backupSet. This option maybe repeated.""")
     parser.add_argument("--verboseLevel", metavar="logLevel", dest="verboseLevel", action="store", default="error",
                         help="""syslog style level name for logging to stderr""")
+    parser.add_argument("--snapOnly", dest="snapOnly", action="store_true", default=False,
+                        help="""Only create source snapshots don't backup to disk.  They will be backed up on the next real backup/""")
     parser.add_argument("backupSetName", default=None, nargs='?',
                         help="""Backup only this set.  If not specified, all sets in config file are backed up.""")
     args = parser.parse_args()
@@ -94,12 +100,13 @@ def checkBackupSubsetArgs(parser, args):
 
 class Backup(object):
     "controls overall backup from args"
-    def __init__(self, args):
-        self.config = args.config
+    def __init__(self, config, backupSetName, sourceFileSystemNames, snapOnly):
+        self.config = config
         self.recorder = BackupRecorder(self.config.recordFile, sys.stdout)
         self.zfs = Zfs()
-        self.backupSetName = args.backupSetName
-        self.sourceFileSystemNames = tuple(args.sourceFileSystemNames) if args.sourceFileSystemNames is not None else None
+        self.backupSetName = backupSetName
+        self.sourceFileSystemNames = tuple(sourceFileSystemNames) if sourceFileSystemNames is not None else None
+        self.snapOnly = snapOnly
         self.lockFh = None
 
     def _getActiveBackupSets(self):
@@ -120,7 +127,10 @@ class Backup(object):
         sourceFileSystemConfs = None
         if sourceFileSystemNames is not None:
             sourceFileSystemConfs = [backupSetConf.getSourceFileSystem(n) for n in sourceFileSystemNames]
-        backupper.backup(sourceFileSystemConfs)
+        if self.snapOnly:
+            backupper.snapOnly(sourceFileSystemConfs)
+        else:
+            backupper.backup(sourceFileSystemConfs)
 
     def runBackups(self):
         self.__obtainLock()
@@ -139,7 +149,7 @@ def main(args):
     if not someLogging:
         loggingOps.setupStderrLogger(logging.ERROR if args.verboseLevel is None else args.verboseLevel)
 
-    backup = Backup(args)
+    backup = Backup(args.config, args.backupSetName, args.sourceFileSystemNames, args.snapOnly)
     try:
         backup.runBackups()
     except Exception as ex:

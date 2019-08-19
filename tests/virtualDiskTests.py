@@ -39,10 +39,10 @@ class VirtualDiskTests(object):
     testLockFile = testVarDir + "/zfszipper.lock"
     testRecordPat = testVarDir + "/zfszipper.%Y-%m.record.tsv"
 
-    testSourceFs1Files = ("one", "two", "three")
-    testSourceFs1Files2 = ("six", "seven", "eight")
-    testSourceFs2Files = ("one1", "two2", "three3")
-    testSourceFs2Files2 = ("six6", "seven7", "eight8")
+    testSourceFs1Files = ("one", "two", "three", "four")
+    testSourceFs1Files2 = ("six", "seven", "eight", "nine")
+    testSourceFs2Files = ("one1", "two2", "three3", "four4")
+    testSourceFs2Files2 = ("six6", "seven7", "eight8", "nine9")
 
     configPyCode = """
 backupSetConf = BackupSetConf("%(testBackupSetName)s",
@@ -86,10 +86,12 @@ config = BackupConf([backupSetConf],
         for relFileName in relFileNames:
             self._writeFile(mountPoint + "/" + relFileName, contentFunction(relFileName))
 
-    def _runZfsZipper(self, configPy, *, backupSet=None, sourceFileSystems=None):
+    def _runZfsZipper(self, configPy, *, backupSet=None, sourceFileSystems=None, snapOnly=False):
         cmd = ["../sbin/zfs-zipper", "--conf={}".format(configPy)]
         if sourceFileSystems is not None:
             cmd.extend(["--sourceFileSystem=" + fs for fs in sourceFileSystems])
+        if snapOnly:
+            cmd.append("--snapOnly")
         if self.zipperLogLevel is not None:
             cmd.append("--verboseLevel=" + self.zipperLogLevel)
         if backupSet is not None:
@@ -134,6 +136,11 @@ config = BackupConf([backupSetConf],
         self._writeTestFiles(sourcePool, self.testSourceFs2, self.testSourceFs2Files[2:2], self._upcaseFunc)
         self._runZfsZipper(configPy, backupSet=self.testBackupSetName, sourceFileSystems=[self.testSourceFs1, self.testSourceFs2])
 
+    def _test1Incr4SnapOnly(self, sourcePool, backupPool, configPy):
+        self._writeTestFiles(sourcePool, self.testSourceFs1, self.testSourceFs1Files[1:3], self._upcaseFunc)
+        self._writeTestFiles(sourcePool, self.testSourceFs2, self.testSourceFs2Files[0:2], self._upcaseFunc)
+        self._runZfsZipper(configPy, snapOnly=True)
+
     def FIXME_test1FullOverwriteFail(self, sourcePool, backupPool, configPy):
         ok = False
         try:
@@ -162,6 +169,9 @@ config = BackupConf([backupSetConf],
 
         # fake a failed run with tmp snapshot on backup
         self._test1Incr3WithTmp(sourcePool, backupPoolA, configPy)
+
+        # just make snapshots
+        self._test1Incr4SnapOnly(sourcePool, backupPoolA, configPy)
 
         # attempt at overwriting
         # FIXME: self._test1FullOverwriteFail(sourcePool, backupPoolA, configPy)

@@ -64,7 +64,7 @@ class BackupError(Exception):
     pass
 
 class FsBackup(object):
-    "backup one file system (args are objects, not names)"
+    "backup one file system (args are objects, not names).  backupPool is None for snapOnly "
     def __init__(self, zfs, recorder, backupSetConf, sourceFileSystem, backupPool):
         self.zfs = zfs
         self.recorder = recorder
@@ -76,7 +76,8 @@ class FsBackup(object):
 
         # backup target
         self.backupPool = backupPool
-        self.backupFileSystemName = backupSetConf.getBackupPoolConf(backupPool.name).determineBackupFileSystemName(sourceFileSystem)
+        if backupPool is not None:
+            self.backupFileSystemName = backupSetConf.getBackupPoolConf(backupPool.name).determineBackupFileSystemName(sourceFileSystem)
 
         self.backupFileSystem = None
         self.backupSnapshots = None
@@ -222,23 +223,16 @@ class FsBackup(object):
             self.recorder.error(self.backupSetConf, self.backupPool, ex, self.sourceFileSystem.name)
             raise
 
+    def snapOnly(self):
+        self._createSourceSnapshot()
+
+
 class BackupSetBackup(object):
     "backup of all data in a backup set"
     def __init__(self, zfs, recorder, backupSetConf):
         self.recorder = recorder
         self.zfs = zfs
         self.backupSetConf = backupSetConf
-        self.backupPool, self.importedPool = self._findBackupPoolToUse()
-
-    def _findBackupPoolToUse(self):
-        pool = self._getImportedPool()
-        if pool is not None:
-            return pool, False
-        pool = self._getExportedPool()
-        if pool is not None:
-            return pool, True
-        raise BackupError("no backup pool is imported or ready for import for backupset {} in {}"
-                          .format(self.backupSetConf.name, self.backupSetConf.backupPoolNames))
 
     def _getExportedPool(self):
         pools = self._getExportedPools()
@@ -275,6 +269,22 @@ class BackupSetBackup(object):
                 pools.append(pool)
         return pools
 
+    def _getSourceFileSystem(self, sourceFileSystemConf):
+        sourceFileSystem = self.zfs.findFileSystem(sourceFileSystemConf.name)
+        if sourceFileSystem is None:
+            raise BackupError("configured file system not in ZFS: " + sourceFileSystemConf.name)
+        return sourceFileSystem
+
+    def _fsBackup(self, sourceFileSystemConf, backupPool):
+        try:
+            fsBackup = FsBackup(self.zfs, self.recorder, self.backupSetConf,
+                                self._getSourceFileSystem(sourceFileSystemConf),
+                                backupPool)
+            fsBackup.backup()
+        except Exception as ex:
+            self.recorder.error(self.backupSetConf, self.backupPool, ex)
+            raise
+
     def _lookupImportedPool(self, poolName):
         backupPool = self.zfs.findPool(poolName)
         if (backupPool is not None) and (backupPool.health == ZfsPoolHealth.ONLINE):
@@ -282,38 +292,40 @@ class BackupSetBackup(object):
         else:
             return None
 
-    def _getSourceFileSystem(self, sourceFileSystemConf):
-        sourceFileSystem = self.zfs.findFileSystem(sourceFileSystemConf.name)
-        if sourceFileSystem is None:
-            raise BackupError("configured file system not in ZFS: " + sourceFileSystemConf.name)
-        return sourceFileSystem
-
-    def _fsBackup(self, sourceFileSystemConf):
-        try:
-            fsBackup = FsBackup(self.zfs, self.recorder, self.backupSetConf,
-                                self._getSourceFileSystem(sourceFileSystemConf),
-                                self.backupPool)
-            fsBackup.backup()
-        except Exception as ex:
-            self.recorder.error(self.backupSetConf, self.backupPool, ex)
-            raise
-
-    def _setupPool(self):
-        if self.importedPool:
-            self.zfs.importPool(self.backupPool)
-
-    def _freeupPool(self):
-        if self.importedPool:
-            self.zfs.exportPool(self.backupPool)
+    def _findBackupPoolToUse(self):
+        pool = self._getImportedPool()
+        if pool is not None:
+            return pool, False
+        pool = self._getExportedPool()
+        if pool is not None:
+            return pool, True
+        raise BackupError("no backup pool is imported or ready for import for backupset {} in {}"
+                          .format(self.backupSetConf.name, self.backupSetConf.backupPoolNames))
 
     def backup(self, sourceFileSystemConfs=None):
         """specifying sourceFileSystemConfs can limit the file systems backed
         up to a subset."""
         if sourceFileSystemConfs is None:
             sourceFileSystemConfs = self.backupSetConf.sourceFileSystemConfs
-        self._setupPool()
+        backupPool, needToImport = self._findBackupPoolToUse()
+        if needToImport:
+            self.zfs.importPool(backupPool)
         try:
             for sourceFileSystemConf in sourceFileSystemConfs:
-                self._fsBackup(sourceFileSystemConf)
+                self._fsBackup(sourceFileSystemConf, backupPool)
         finally:
-            self._freeupPool()
+            if needToImport:
+                self.zfs.exportPool(self.backupPool)
+
+    def _fsSnapOnly(self, sourceFileSystemConf):
+        fsBackup = FsBackup(self.zfs, self.recorder, self.backupSetConf,
+                            self._getSourceFileSystem(sourceFileSystemConf),
+                            backupPool=None)
+        fsBackup.snapOnly()
+
+    def snapOnly(self, sourceFileSystemConfs=None):
+        """create snapshots without backing up."""
+        if sourceFileSystemConfs is None:
+            sourceFileSystemConfs = self.backupSetConf.sourceFileSystemConfs
+        for sourceFileSystemConf in sourceFileSystemConfs:
+            self._fsSnapOnly(sourceFileSystemConf)

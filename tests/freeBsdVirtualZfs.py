@@ -36,7 +36,7 @@ class _ZfsVnodePool(object):
         self.fileSystems = tuple([self.ZfsFs(self.poolName, self.mntDir + "/" + self.poolName)]
                                  + [self.ZfsFs(fs, self.mntDir + "/" + fs) for fs in otherFileSystems])
 
-    def __createVnodeDisk(self):
+    def _createVnodeDisk(self):
         ensureFileDir(self.devFile)
         ensureDir(self.mntDir)
         if os.path.exists(self.devFile):
@@ -51,7 +51,7 @@ class _ZfsVnodePool(object):
         raise Exception("can't find filesystem " + fileSystemName)
 
     def setup(self):
-        self.__createVnodeDisk()
+        self._createVnodeDisk()
         zfsPoolCreate(self.fileSystems[0].mountPoint, self.poolName, self.unitDev)
 
     def createFileSystems(self):
