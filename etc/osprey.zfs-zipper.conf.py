@@ -11,14 +11,14 @@ from zfszipper.config import BackupSetConf, SourceFileSystemConf, BackupPoolConf
 
 # two rotations
 osprey1Set = BackupSetConf("osprey1",
-                           [SourceFileSystemConf("b_pool/photo_b")],
+                           [SourceFileSystemConf("kettle/photo_b")],
                            [BackupPoolConf("osprey_zackup1a"),
                             BackupPoolConf("osprey_zackup1b"),
                             BackupPoolConf("osprey_zackup1c")])
 osprey2Set = BackupSetConf("osprey2",
-                           [SourceFileSystemConf("a_pool/markd_a"),
-                            SourceFileSystemConf("a_pool/osprey"),
-                            SourceFileSystemConf("a_pool/photo_a")],
+                           [SourceFileSystemConf("kettle/markd_a"),
+                            SourceFileSystemConf("kettle/osprey"),
+                            SourceFileSystemConf("kettle/photo_a")],
                            [BackupPoolConf("osprey_zackup2a"),
                             BackupPoolConf("osprey_zackup2b"),
                             BackupPoolConf("osprey_zackup2c")])
