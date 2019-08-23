@@ -315,7 +315,7 @@ class BackupSetBackup(object):
                 self._fsBackup(sourceFileSystemConf, backupPool)
         finally:
             if needToImport:
-                self.zfs.exportPool(self.backupPool)
+                self.zfs.exportPool(backupPool)
 
     def _fsSnapOnly(self, sourceFileSystemConf):
         fsBackup = FsBackup(self.zfs, self.recorder, self.backupSetConf,
