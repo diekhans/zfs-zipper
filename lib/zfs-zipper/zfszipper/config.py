@@ -116,7 +116,7 @@ class BackupConf(object):
         for backupSet in self.backupSets:
             if backupSet.name == backupSetName:
                 return backupSet
-        raise BackupSetConf("unknown backup set: " + backupSetName)
+        raise BackupConfigError("unknown backup set: {}".format( backupSetName))
 
     def findSourceFileSystemBackupSets(self, sourceFileSystemName):
         """return list of backupSets containing source file system or empty list"""
