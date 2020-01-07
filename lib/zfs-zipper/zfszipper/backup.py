@@ -229,10 +229,11 @@ class FsBackup(object):
 
 class BackupSetBackup(object):
     "backup of all data in a backup set"
-    def __init__(self, zfs, recorder, backupSetConf):
+    def __init__(self, zfs, recorder, backupSetConf, allowDegraded):
         self.recorder = recorder
         self.zfs = zfs
         self.backupSetConf = backupSetConf
+        self.allowDegraded = allowDegraded
 
     def _getExportedPool(self):
         pools = self._getExportedPools()
@@ -247,7 +248,7 @@ class BackupSetBackup(object):
     def _getExportedPools(self):
         pools = []
         for pool in self.zfs.listExported():
-            if (pool.name in self.backupSetConf.backupPoolNames) and (pool.health == ZfsPoolHealth.ONLINE):
+            if (pool.name in self.backupSetConf.backupPoolNames) and (pool.health in (ZfsPoolHealth.ONLINE, ZfsPoolHealth.DEGRADED)):
                 pools.append(pool)
         return pools
 
@@ -260,6 +261,13 @@ class BackupSetBackup(object):
         else:
             raise BackupError("multiple backup pools are imported for backupset {} in {}"
                               .format(self.backupSetConf.name, [pool.name for pool in pools]))
+
+    def _lookupImportedPool(self, poolName):
+        backupPool = self.zfs.findPool(poolName)
+        if (backupPool is not None) and (backupPool.health in (ZfsPoolHealth.ONLINE, ZfsPoolHealth.DEGRADED)):
+            return backupPool
+        else:
+            return None
 
     def _getImportedPools(self):
         pools = []
@@ -285,13 +293,6 @@ class BackupSetBackup(object):
             self.recorder.error(self.backupSetConf, self.backupPool, ex)
             raise
 
-    def _lookupImportedPool(self, poolName):
-        backupPool = self.zfs.findPool(poolName)
-        if (backupPool is not None) and (backupPool.health == ZfsPoolHealth.ONLINE):
-            return backupPool
-        else:
-            return None
-
     def _findBackupPoolToUse(self):
         pool = self._getImportedPool()
         if pool is not None:
@@ -302,12 +303,23 @@ class BackupSetBackup(object):
         raise BackupError("no backup pool is imported or ready for import for backupset {} in {}"
                           .format(self.backupSetConf.name, self.backupSetConf.backupPoolNames))
 
+    def _obtainBackupPool(self):
+        backupPool, needToImport = self._findBackupPoolToUse()
+        if needToImport:
+            self.zfs.importPool(backupPool)
+        if (backupPool.health == ZfsPoolHealth.DEGRADED):
+            if self.allowDegraded:
+                logger.warning("backing up to degraded pool: {}".format(backupPool.name))
+            else:
+                raise BackupError("backup pool degraded: {}".format(backupPool.name))
+        return backupPool, needToImport
+
     def backup(self, sourceFileSystemConfs=None):
         """specifying sourceFileSystemConfs can limit the file systems backed
         up to a subset."""
         if sourceFileSystemConfs is None:
             sourceFileSystemConfs = self.backupSetConf.sourceFileSystemConfs
-        backupPool, needToImport = self._findBackupPoolToUse()
+        backupPool, needToImport = self._obtainBackupPool()
         if needToImport:
             self.zfs.importPool(backupPool)
         try:

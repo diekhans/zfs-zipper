@@ -534,7 +534,7 @@ class BackuperTests(unittest.TestCase):
         zfs.add(self.backupPool1)
         zfs.add(self.backupPool2Off)
         recorder = TestBackupRecorder(self.id())
-        bsb = BackupSetBackup(zfs, recorder, self.backupConf1)
+        bsb = BackupSetBackup(zfs, recorder, self.backupConf1, allowDegraded=False)
         bsb.backup()
         self._assertActions(zfs,
                             ['zfs create backupPool1/srcPool1/srcPool1Fs1',

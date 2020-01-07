@@ -69,6 +69,8 @@ def parseCommand():
     usage = """Run a backup from ZFS source pools to back source pools.
     """
     parser = argparse.ArgumentParser(description=usage)
+    parser.add_argument("--list", "-l", dest="listSets", action="store_true", default=False,
+                        help="""List backup sets""")
     parser.add_argument("--conf", default=defaultConfig, dest="configPy",
                         help="""Configuration file written in Python.  It should do a `from zfszipper.config import *'
                         and then create an instance of BackupConf() stored in a module-global variable `config'.""")
@@ -78,8 +80,8 @@ def parseCommand():
                         help="""syslog style level name for logging to stderr""")
     parser.add_argument("--snapOnly", dest="snapOnly", action="store_true", default=False,
                         help="""Only create source snapshots don't backup to disk.  They will be backed up on the next real backup.""")
-    parser.add_argument("--list", dest="listSets", action="store_true", default=False,
-                        help="""List backup sets""")
+    parser.add_argument("--allowDegraded", dest="allowDegraded", action="store_true", default=False,
+                        help="""Allow backup to a degraded pool""")
     parser.add_argument("backupSetName", default=None, nargs='?',
                         help="""Backup only this set.  If not specified, all sets in config file are backed up.""")
     args = parser.parse_args()
@@ -102,13 +104,14 @@ def checkBackupSubsetArgs(parser, args):
 
 class Backup(object):
     "controls overall backup from args"
-    def __init__(self, config, backupSetName, sourceFileSystemNames, snapOnly):
+    def __init__(self, config, backupSetName, sourceFileSystemNames, snapOnly, allowDegraded):
         self.config = config
         self.recorder = None if snapOnly else BackupRecorder(self.config.recordFile, sys.stdout)
         self.zfs = Zfs()
         self.backupSetName = backupSetName
         self.sourceFileSystemNames = tuple(sourceFileSystemNames) if sourceFileSystemNames is not None else None
         self.snapOnly = snapOnly
+        self.allowDegraded = allowDegraded
         self.lockFh = None
 
     def _getActiveBackupSets(self):
@@ -125,7 +128,7 @@ class Backup(object):
             raise BackupError("can't lock {}, is another backup running?".format(self.config.lockFile), ex)
 
     def _backupOneSet(self, backupSetConf, sourceFileSystemNames=None):
-        backupper = BackupSetBackup(self.zfs, self.recorder, backupSetConf)
+        backupper = BackupSetBackup(self.zfs, self.recorder, backupSetConf, self.allowDegraded)
         sourceFileSystemConfs = None
         if sourceFileSystemNames is not None:
             sourceFileSystemConfs = [backupSetConf.getSourceFileSystem(n) for n in sourceFileSystemNames]
@@ -153,7 +156,7 @@ def setupLogging(args):
 
 def doBackup(args):
     setupLogging(args)
-    backup = Backup(args.config, args.backupSetName, args.sourceFileSystemNames, args.snapOnly)
+    backup = Backup(args.config, args.backupSetName, args.sourceFileSystemNames, args.snapOnly, args.allowDegraded)
     try:
         backup.runBackups()
     except Exception as ex:
