@@ -320,8 +320,6 @@ class BackupSetBackup(object):
         if sourceFileSystemConfs is None:
             sourceFileSystemConfs = self.backupSetConf.sourceFileSystemConfs
         backupPool, needToImport = self._obtainBackupPool()
-        if needToImport:
-            self.zfs.importPool(backupPool)
         try:
             for sourceFileSystemConf in sourceFileSystemConfs:
                 self._fsBackup(sourceFileSystemConf, backupPool)
