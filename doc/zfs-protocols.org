@@ -91,6 +91,15 @@ zpool status -v
 * information
 - version being run:
    sysctl -a | grep kext
+* replacing drive in pool
+- find new disk with
+  diskutil list
+  or look in /var/run/disk/by-id/  ???
+- use internal disk id of old disk:
+  zpool status -g
+  sudo zpool replace POOL 1111111111111111111 /dev/diskXXX
+  sudo zpool clear POOL
+
 * cannot export XXX': pool I/O is currently suspended
 sudo zpool clear -nFX  XXX
 
