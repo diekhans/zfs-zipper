@@ -290,7 +290,7 @@ class BackupSetBackup(object):
                                 backupPool)
             fsBackup.backup()
         except Exception as ex:
-            self.recorder.error(self.backupSetConf, self.backupPool, ex)
+            self.recorder.error(self.backupSetConf, backupPool, ex)
             raise
 
     def _findBackupPoolToUse(self):

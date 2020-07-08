@@ -37,9 +37,10 @@ ${pycCompileDone}: ${libPyFiles}
 	PYTHONPATH=lib/zfs-zipper ${PYTHON} -B -c 'import compileall; compileall.compile_dir("${libPyDir}")'
 	touch $@
 
+# must clean tests first, as it runs python code.
 clean:
-	rm -f ${libPycDir}
 	cd tests && ${MAKE} clean
+	rm -rf __pycache__ ${libPycDir}
 
 flake8: link
 lint:

@@ -57,3 +57,7 @@ slog about on to long a message, temporaryly disable in confi
 https://superuser.com/questions/168727/mac-extend-or-disable-500-messages-limit-of-console
 * zfs library should return parsed results, rather than raw info
 * BackupSnapshot FIXME: terminology is still confusing with much of the code used snapshotName rather than backupsetName
+* figure out how to get unix domain sockets logging working
+* figure out how to split up messages
+* import update loggingOps from pycbo
+* remove the tmp snapsho stuff, trust zfs
