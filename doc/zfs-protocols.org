@@ -28,7 +28,7 @@ doesn't actually help with lightroom import
 
 * initializing a zfs RAID-1 pool backup disk
 # make mirrrored pool, specify -f if it is used
-zpool create -O atime=off -O compression=lz4 -O dedup=off -m /media/zackup2 osprey_zackup?? mirror disk? disk??
+zpool create -O atime=off -O compression=lz4 -O dedup=off -m /media/zackup? osprey_zackup?? mirror disk? disk??
 # verify it is configured as RAID 0
 zpool status osprey_zackup1a
 
@@ -37,6 +37,10 @@ pmset -a disksleep 10
 
 # can do this to kill the header if needed
 dd if=/dev/zero of=/dev/XX bs=1m count=128
+
+* initialize a ZFS 2 volume pool backup disk
+
+zpool create -O atime=off -O compression=lz4 -O dedup=off -m /media/zackup? osprey_zackup?? disk? disk??
 
 
 * discovering pool status
