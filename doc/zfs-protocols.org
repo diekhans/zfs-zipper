@@ -43,6 +43,11 @@ dd if=/dev/zero of=/dev/XX bs=1m count=128
 zpool create -O atime=off -O compression=lz4 -O dedup=off -m /media/zackup? osprey_zackup?? disk? disk??
 
 
+* list properties
+zfs get all  property kettle/markd_a
+* creating file system
+zfs create -p -o atime=off -o com.apple.devdisk=on -o mountpoint=/mnt/music-library kettle/music-library
+
 * discovering pool status
    sudo zpool status osprey_backup?
    sudo zpool list osprey_backup?
