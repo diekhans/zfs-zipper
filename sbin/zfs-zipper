@@ -18,7 +18,7 @@ Older versions names snapshots in the forms:
     zipper_<GMT>_<backupset>_incr
 However, the concept of full vs increment wasn't useful and these extensions
 are now just part of the name and not added for new snapshots.  It the future,
-other suffixes might be used as some kind of taggins system.
+other suffixes might be used as some kind of tagging system.
 
 When a backup is started, a new snapshot is made on the source file system.
 Incremental snapshots are sent to the backup file system starting after
@@ -32,8 +32,6 @@ This has also been used to clone all backups to a new file system.
 
 Other features maybe added in the future to adjust starting snapshot
 to allow for omitting deleted data.
-
-
 
 """
 
@@ -62,7 +60,7 @@ def evalConfigFile(configPyFile):
     if config is None:
         raise Exception("config file {} doesn't set variable 'config'".format(configPyFile,))
     if not isinstance(config, BackupConf):
-        raise Exception("config file {} variable 'config' isn't an instance of BackupConf, found".format(configPyFile, str(type(config))))
+        raise Exception("config file {} variable 'config' isn't an instance of BackupConf, found: {}".format(configPyFile, str(type(config))))
     return config
 
 def parseCommand():
@@ -82,8 +80,8 @@ def parseCommand():
                         help="""Only create source snapshots don't backup to disk.  They will be backed up on the next real backup.""")
     parser.add_argument("--allowDegraded", dest="allowDegraded", action="store_true", default=False,
                         help="""Allow backup to a degraded pool""")
-    parser.add_argument("backupSetName", default=None, nargs='?',
-                        help="""Backup only this set.  If not specified, all sets in config file are backed up.""")
+    parser.add_argument("backupSetNames", metavar="backupSetName", default=[], nargs='*',
+                        help="""Backup only these sets.  If not specified, all sets in config file are backed up.""")
     args = parser.parse_args()
     setattr(args, "config", evalConfigFile(args.configPy))
     if args.verboseLevel is not None:
@@ -94,29 +92,29 @@ def parseCommand():
     return args
 
 def checkBackupSubsetArgs(parser, args):
-    if (args.sourceFileSystemNames is not None) and (args.backupSetName is None):
-        parser.error("must specify --backUpSet with --sourceFileSystemName")
-    if args.backupSetName is not None:
-        backupSetConf = args.config.getBackupSet(args.backupSetName)  # error if not found
-        if args.sourceFileSystemNames is not None:
-            for sourceFileSystemName in args.sourceFileSystemNames:
-                backupSetConf.getSourceFileSystem(sourceFileSystemName)  # error if not found
+    if (args.sourceFileSystemNames is not None) and (len(args.backupSetNames) != 1):
+        parser.error("must specify a single backUpSet with --sourceFileSystemName")
+    for backupSetName in args.backupSetNames:
+        backupSetConf = args.config.getBackupSet(backupSetName)  # error if not found
+    if args.sourceFileSystemNames is not None:
+        for sourceFileSystemName in args.sourceFileSystemNames:
+            backupSetConf.getSourceFileSystem(sourceFileSystemName)  # error if not found
 
 class Backup(object):
     "controls overall backup from args"
-    def __init__(self, config, backupSetName, sourceFileSystemNames, snapOnly, allowDegraded):
+    def __init__(self, config, backupSetNames, sourceFileSystemNames, snapOnly, allowDegraded):
         self.config = config
         self.recorder = None if snapOnly else BackupRecorder(self.config.recordFile, sys.stdout)
         self.zfs = Zfs()
-        self.backupSetName = backupSetName
+        self.backupSetNames = backupSetNames
         self.sourceFileSystemNames = tuple(sourceFileSystemNames) if sourceFileSystemNames is not None else None
         self.snapOnly = snapOnly
         self.allowDegraded = allowDegraded
         self.lockFh = None
 
     def _getActiveBackupSets(self):
-        if self.backupSetName is not None:
-            return (self.config.getBackupSet(self.backupSetName),)
+        if len(self.backupSetNames) > 0:
+            return [self.config.getBackupSet(bs) for bs in self.backupSetNames]
         else:
             return self.config.backupSets
 
@@ -156,7 +154,7 @@ def setupLogging(args):
 
 def doBackup(args):
     setupLogging(args)
-    backup = Backup(args.config, args.backupSetName, args.sourceFileSystemNames, args.snapOnly, args.allowDegraded)
+    backup = Backup(args.config, args.backupSetNames, args.sourceFileSystemNames, args.snapOnly, args.allowDegraded)
     try:
         backup.runBackups()
     except Exception as ex:
