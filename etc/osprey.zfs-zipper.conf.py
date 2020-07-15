@@ -17,7 +17,6 @@ osprey1Set = BackupSetConf("osprey1",
                             BackupPoolConf("osprey_zackup1c")])
 osprey2Set = BackupSetConf("osprey2",
                            [SourceFileSystemConf("kettle/markd_a"),
-                            SourceFileSystemConf("kettle/osprey"),
                             SourceFileSystemConf("kettle/photo_a"),
                             SourceFileSystemConf("kettle/music-library"),],
                            [BackupPoolConf("osprey_zackup2a"),
