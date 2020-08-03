@@ -42,6 +42,8 @@ dd if=/dev/zero of=/dev/XX bs=1m count=128
 
 zpool create -O atime=off -O compression=lz4 -O dedup=off -m /media/zackup? osprey_zackup?? disk? disk??
 
+* set features:
+zpool set feature@extensible_dataset=enabled osprey_zackup??
 
 * list properties
 zfs get all  property kettle/markd_a
@@ -113,3 +115,6 @@ zpool status -v
 sudo zpool clear -nFX  XXX
 
 
+
+* time machine:
+from https://openzfsonosx.org/wiki/Time_Machine_Backups

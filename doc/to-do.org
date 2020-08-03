@@ -1,6 +1,11 @@
+* make send/receive restartable
+https://unix.stackexchange.com/questions/343675/zfs-on-linux-send-receive-resume-on-poor-bad-ssh-connection
+use tiny FS to test failure.
+don't need .tmp, the incomplete is there but need to either resume or abort with receive -A
+* deal with syslog messages being too long
 * Ideas to move files and snapshots from one pool to another
    https://docs.oracle.com/cd/E18752_01/html/819-5461/gbchx.html#gfwqb
-
+   logging disabled for the momemt
 * What if a there is a crash while copying a snapshot?  Is it in a partial state.  
 Probably should do a tmpname on snapshop
 
@@ -60,4 +65,3 @@ https://superuser.com/questions/168727/mac-extend-or-disable-500-messages-limit-
 * figure out how to get unix domain sockets logging working
 * figure out how to split up messages
 * import update loggingOps from pycbo
-* remove the tmp snapsho stuff, trust zfs

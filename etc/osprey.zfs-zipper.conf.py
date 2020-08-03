@@ -24,5 +24,7 @@ osprey2Set = BackupSetConf("osprey2",
                             BackupPoolConf("osprey_zackup2c")])
 config = BackupConf([osprey1Set, osprey2Set],
                     lockFile="/var/run/zfszipper.lock",
-                    recordFilePattern="/var/db/zfszipper/%Y/%Y-%m.record.tsv",
-                    syslogFacility="local0")
+                    recordFilePattern="/var/db/zfszipper/%Y/%Y-%m.record.tsv")
+
+# disable until msg too long fixed
+#                    syslogFacility="local0")
