@@ -1,8 +1,0 @@
-* 2019-04-18:
- 4TB osprey_zackup1b is full
- switch to two backup sets
-
-zpool create -f -O atime=off -O compression=lz4 -O dedup=off -m /media/zackup1 osprey_zackup1b mirror /dev/disk0 /dev/disk1
-zpool status
-
- 
