@@ -254,12 +254,10 @@ class BackuperTests(unittest.TestCase):
         self._assertActions(zfs,
                             ['zfs create backupPool1/srcPool1/srcPool1Fs1',
                              'zfs snapshot srcPool1/srcPool1Fs1@zipper_2001-01-01T00:00:00_testBackupSet',
-                             'zfs send -P srcPool1/srcPool1Fs1@zipper_2001-01-01T00:00:00_testBackupSet | zfs receive -F backupPool1/srcPool1/srcPool1Fs1@zipper_2001-01-01T00:00:00_testBackupSet.tmp',
-                             'zfs rename backupPool1/srcPool1/srcPool1Fs1@zipper_2001-01-01T00:00:00_testBackupSet.tmp backupPool1/srcPool1/srcPool1Fs1@zipper_2001-01-01T00:00:00_testBackupSet',
+                             'zfs send -P srcPool1/srcPool1Fs1@zipper_2001-01-01T00:00:00_testBackupSet | zfs receive -F backupPool1/srcPool1/srcPool1Fs1@zipper_2001-01-01T00:00:00_testBackupSet',
                              'zfs create backupPool1/srcPool1/srcPool1Fs2',
                              'zfs snapshot srcPool1/srcPool1Fs2@zipper_2001-01-01T00:00:02_testBackupSet',
-                             'zfs send -P srcPool1/srcPool1Fs2@zipper_2001-01-01T00:00:02_testBackupSet | zfs receive -F backupPool1/srcPool1/srcPool1Fs2@zipper_2001-01-01T00:00:02_testBackupSet.tmp',
-                             'zfs rename backupPool1/srcPool1/srcPool1Fs2@zipper_2001-01-01T00:00:02_testBackupSet.tmp backupPool1/srcPool1/srcPool1Fs2@zipper_2001-01-01T00:00:02_testBackupSet'])
+                             'zfs send -P srcPool1/srcPool1Fs2@zipper_2001-01-01T00:00:02_testBackupSet | zfs receive -F backupPool1/srcPool1/srcPool1Fs2@zipper_2001-01-01T00:00:02_testBackupSet',])
         self._assertRecorded(recorder,
                              ['2001-01-01T00:00:01	testBackupSet	backupPool1	full	srcPool1/srcPool1Fs1@zipper_2001-01-01T00:00:00_testBackupSet		backupPool1/srcPool1/srcPool1Fs1@zipper_2001-01-01T00:00:00_testBackupSet	50000		',
                               '2001-01-01T00:00:03	testBackupSet	backupPool1	full	srcPool1/srcPool1Fs2@zipper_2001-01-01T00:00:02_testBackupSet		backupPool1/srcPool1/srcPool1Fs2@zipper_2001-01-01T00:00:02_testBackupSet	50000		'])
@@ -286,17 +284,13 @@ class BackuperTests(unittest.TestCase):
         self._twoFsBackup(zfs, recorder)
         self._assertActions(zfs,
                             ['zfs create backupPool1/srcPool1/srcPool1Fs1',
-                             'zfs send -P srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet | zfs receive -F backupPool1/srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet.tmp',
-                             'zfs rename backupPool1/srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet.tmp backupPool1/srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet',
+                             'zfs send -P srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet | zfs receive -F backupPool1/srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet',
                              'zfs snapshot srcPool1/srcPool1Fs1@zipper_2001-01-02T00:00:01_testBackupSet',
-                             'zfs send -P -i srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet srcPool1/srcPool1Fs1@zipper_2001-01-02T00:00:01_testBackupSet | zfs receive backupPool1/srcPool1/srcPool1Fs1@zipper_2001-01-02T00:00:01_testBackupSet.tmp',
-                             'zfs rename backupPool1/srcPool1/srcPool1Fs1@zipper_2001-01-02T00:00:01_testBackupSet.tmp backupPool1/srcPool1/srcPool1Fs1@zipper_2001-01-02T00:00:01_testBackupSet',
+                             'zfs send -P -i srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet srcPool1/srcPool1Fs1@zipper_2001-01-02T00:00:01_testBackupSet | zfs receive backupPool1/srcPool1/srcPool1Fs1@zipper_2001-01-02T00:00:01_testBackupSet',
                              'zfs create backupPool1/srcPool1/srcPool1Fs2',
-                             'zfs send -P srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet | zfs receive -F backupPool1/srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet.tmp',
-                             'zfs rename backupPool1/srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet.tmp backupPool1/srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet',
+                             'zfs send -P srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet | zfs receive -F backupPool1/srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet',
                              'zfs snapshot srcPool1/srcPool1Fs2@zipper_2001-01-02T00:00:04_testBackupSet',
-                             'zfs send -P -i srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet srcPool1/srcPool1Fs2@zipper_2001-01-02T00:00:04_testBackupSet | zfs receive backupPool1/srcPool1/srcPool1Fs2@zipper_2001-01-02T00:00:04_testBackupSet.tmp',
-                             'zfs rename backupPool1/srcPool1/srcPool1Fs2@zipper_2001-01-02T00:00:04_testBackupSet.tmp backupPool1/srcPool1/srcPool1Fs2@zipper_2001-01-02T00:00:04_testBackupSet'])
+                             'zfs send -P -i srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet srcPool1/srcPool1Fs2@zipper_2001-01-02T00:00:04_testBackupSet | zfs receive backupPool1/srcPool1/srcPool1Fs2@zipper_2001-01-02T00:00:04_testBackupSet',])
         self._assertRecorded(recorder,
                              ['2001-01-02T00:00:00	testBackupSet	backupPool1	full	srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet		backupPool1/srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet	50000		',
                               '2001-01-02T00:00:02	testBackupSet	backupPool1	incr	srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet	srcPool1/srcPool1Fs1@zipper_2001-01-02T00:00:01_testBackupSet	backupPool1/srcPool1/srcPool1Fs1@zipper_2001-01-02T00:00:01_testBackupSet	50000		',
@@ -330,11 +324,9 @@ class BackuperTests(unittest.TestCase):
         self._twoFsBackup(zfs, recorder)
         self._assertActions(zfs,
                             ['zfs snapshot srcPool1/srcPool1Fs1@zipper_1999-02-01T00:00:00_testBackupSet',
-                             'zfs send -P -i srcPool1/srcPool1Fs1@zipper_1932-02-01T17:30:34_testBackupSet srcPool1/srcPool1Fs1@zipper_1999-02-01T00:00:00_testBackupSet | zfs receive backupPool1/srcPool1/srcPool1Fs1@zipper_1999-02-01T00:00:00_testBackupSet.tmp',
-                             'zfs rename backupPool1/srcPool1/srcPool1Fs1@zipper_1999-02-01T00:00:00_testBackupSet.tmp backupPool1/srcPool1/srcPool1Fs1@zipper_1999-02-01T00:00:00_testBackupSet',
+                             'zfs send -P -i srcPool1/srcPool1Fs1@zipper_1932-02-01T17:30:34_testBackupSet srcPool1/srcPool1Fs1@zipper_1999-02-01T00:00:00_testBackupSet | zfs receive backupPool1/srcPool1/srcPool1Fs1@zipper_1999-02-01T00:00:00_testBackupSet',
                              'zfs snapshot srcPool1/srcPool1Fs2@zipper_1999-02-01T00:00:02_testBackupSet',
-                             'zfs send -P -i srcPool1/srcPool1Fs2@zipper_1932-02-01T17:30:34_testBackupSet srcPool1/srcPool1Fs2@zipper_1999-02-01T00:00:02_testBackupSet | zfs receive backupPool1/srcPool1/srcPool1Fs2@zipper_1999-02-01T00:00:02_testBackupSet.tmp',
-                             'zfs rename backupPool1/srcPool1/srcPool1Fs2@zipper_1999-02-01T00:00:02_testBackupSet.tmp backupPool1/srcPool1/srcPool1Fs2@zipper_1999-02-01T00:00:02_testBackupSet'])
+                             'zfs send -P -i srcPool1/srcPool1Fs2@zipper_1932-02-01T17:30:34_testBackupSet srcPool1/srcPool1Fs2@zipper_1999-02-01T00:00:02_testBackupSet | zfs receive backupPool1/srcPool1/srcPool1Fs2@zipper_1999-02-01T00:00:02_testBackupSet',])
         self._assertRecorded(recorder,
                              ['1999-02-01T00:00:01	testBackupSet	backupPool1	incr	srcPool1/srcPool1Fs1@zipper_1932-02-01T17:30:34_testBackupSet	srcPool1/srcPool1Fs1@zipper_1999-02-01T00:00:00_testBackupSet	backupPool1/srcPool1/srcPool1Fs1@zipper_1999-02-01T00:00:00_testBackupSet	50000		',
                               '1999-02-01T00:00:03	testBackupSet	backupPool1	incr	srcPool1/srcPool1Fs2@zipper_1932-02-01T17:30:34_testBackupSet	srcPool1/srcPool1Fs2@zipper_1999-02-01T00:00:02_testBackupSet	backupPool1/srcPool1/srcPool1Fs2@zipper_1999-02-01T00:00:02_testBackupSet	50000		'])
@@ -369,25 +361,17 @@ class BackuperTests(unittest.TestCase):
         self._twoFsBackup(zfs, recorder)
         self._assertActions(zfs,
                             ['zfs create backupPool1/srcPool1/srcPool1Fs1',
-                             'zfs send -P srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet | zfs receive -F backupPool1/srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet.tmp',
-                             'zfs rename backupPool1/srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet.tmp backupPool1/srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet',
-                             'zfs send -P -i srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet srcPool1/srcPool1Fs1@zipper_1932-02-01T17:30:34_testBackupSet | zfs receive backupPool1/srcPool1/srcPool1Fs1@zipper_1932-02-01T17:30:34_testBackupSet.tmp',
-                             'zfs rename backupPool1/srcPool1/srcPool1Fs1@zipper_1932-02-01T17:30:34_testBackupSet.tmp backupPool1/srcPool1/srcPool1Fs1@zipper_1932-02-01T17:30:34_testBackupSet',
-                             'zfs send -P -i srcPool1/srcPool1Fs1@zipper_1932-02-01T17:30:34_testBackupSet srcPool1/srcPool1Fs1@zipper_1932-03-02T17:30:34_testBackupSet | zfs receive backupPool1/srcPool1/srcPool1Fs1@zipper_1932-03-02T17:30:34_testBackupSet.tmp',
-                             'zfs rename backupPool1/srcPool1/srcPool1Fs1@zipper_1932-03-02T17:30:34_testBackupSet.tmp backupPool1/srcPool1/srcPool1Fs1@zipper_1932-03-02T17:30:34_testBackupSet',
+                             'zfs send -P srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet | zfs receive -F backupPool1/srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet',
+                             'zfs send -P -i srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet srcPool1/srcPool1Fs1@zipper_1932-02-01T17:30:34_testBackupSet | zfs receive backupPool1/srcPool1/srcPool1Fs1@zipper_1932-02-01T17:30:34_testBackupSet',
+                             'zfs send -P -i srcPool1/srcPool1Fs1@zipper_1932-02-01T17:30:34_testBackupSet srcPool1/srcPool1Fs1@zipper_1932-03-02T17:30:34_testBackupSet | zfs receive backupPool1/srcPool1/srcPool1Fs1@zipper_1932-03-02T17:30:34_testBackupSet',
                              'zfs snapshot srcPool1/srcPool1Fs1@zipper_1969-02-01T00:00:03_testBackupSet',
-                             'zfs send -P -i srcPool1/srcPool1Fs1@zipper_1932-03-02T17:30:34_testBackupSet srcPool1/srcPool1Fs1@zipper_1969-02-01T00:00:03_testBackupSet | zfs receive backupPool1/srcPool1/srcPool1Fs1@zipper_1969-02-01T00:00:03_testBackupSet.tmp',
-                             'zfs rename backupPool1/srcPool1/srcPool1Fs1@zipper_1969-02-01T00:00:03_testBackupSet.tmp backupPool1/srcPool1/srcPool1Fs1@zipper_1969-02-01T00:00:03_testBackupSet',
+                             'zfs send -P -i srcPool1/srcPool1Fs1@zipper_1932-03-02T17:30:34_testBackupSet srcPool1/srcPool1Fs1@zipper_1969-02-01T00:00:03_testBackupSet | zfs receive backupPool1/srcPool1/srcPool1Fs1@zipper_1969-02-01T00:00:03_testBackupSet',
                              'zfs create backupPool1/srcPool1/srcPool1Fs2',
-                             'zfs send -P srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet | zfs receive -F backupPool1/srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet.tmp',
-                             'zfs rename backupPool1/srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet.tmp backupPool1/srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet',
-                             'zfs send -P -i srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet srcPool1/srcPool1Fs2@zipper_1932-02-01T17:30:34_testBackupSet | zfs receive backupPool1/srcPool1/srcPool1Fs2@zipper_1932-02-01T17:30:34_testBackupSet.tmp',
-                             'zfs rename backupPool1/srcPool1/srcPool1Fs2@zipper_1932-02-01T17:30:34_testBackupSet.tmp backupPool1/srcPool1/srcPool1Fs2@zipper_1932-02-01T17:30:34_testBackupSet',
-                             'zfs send -P -i srcPool1/srcPool1Fs2@zipper_1932-02-01T17:30:34_testBackupSet srcPool1/srcPool1Fs2@zipper_1932-03-02T17:30:34_testBackupSet | zfs receive backupPool1/srcPool1/srcPool1Fs2@zipper_1932-03-02T17:30:34_testBackupSet.tmp',
-                             'zfs rename backupPool1/srcPool1/srcPool1Fs2@zipper_1932-03-02T17:30:34_testBackupSet.tmp backupPool1/srcPool1/srcPool1Fs2@zipper_1932-03-02T17:30:34_testBackupSet',
+                             'zfs send -P srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet | zfs receive -F backupPool1/srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet',
+                             'zfs send -P -i srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet srcPool1/srcPool1Fs2@zipper_1932-02-01T17:30:34_testBackupSet | zfs receive backupPool1/srcPool1/srcPool1Fs2@zipper_1932-02-01T17:30:34_testBackupSet',
+                             'zfs send -P -i srcPool1/srcPool1Fs2@zipper_1932-02-01T17:30:34_testBackupSet srcPool1/srcPool1Fs2@zipper_1932-03-02T17:30:34_testBackupSet | zfs receive backupPool1/srcPool1/srcPool1Fs2@zipper_1932-03-02T17:30:34_testBackupSet',
                              'zfs snapshot srcPool1/srcPool1Fs2@zipper_1969-02-01T00:00:08_testBackupSet',
-                             'zfs send -P -i srcPool1/srcPool1Fs2@zipper_1932-03-02T17:30:34_testBackupSet srcPool1/srcPool1Fs2@zipper_1969-02-01T00:00:08_testBackupSet | zfs receive backupPool1/srcPool1/srcPool1Fs2@zipper_1969-02-01T00:00:08_testBackupSet.tmp',
-                             'zfs rename backupPool1/srcPool1/srcPool1Fs2@zipper_1969-02-01T00:00:08_testBackupSet.tmp backupPool1/srcPool1/srcPool1Fs2@zipper_1969-02-01T00:00:08_testBackupSet'])
+                             'zfs send -P -i srcPool1/srcPool1Fs2@zipper_1932-03-02T17:30:34_testBackupSet srcPool1/srcPool1Fs2@zipper_1969-02-01T00:00:08_testBackupSet | zfs receive backupPool1/srcPool1/srcPool1Fs2@zipper_1969-02-01T00:00:08_testBackupSet',])
         self._assertRecorded(recorder,
                              ['1969-02-01T00:00:00	testBackupSet	backupPool1	full	srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet		backupPool1/srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet	50000		',
                               '1969-02-01T00:00:01	testBackupSet	backupPool1	incr	srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet	srcPool1/srcPool1Fs1@zipper_1932-02-01T17:30:34_testBackupSet	backupPool1/srcPool1/srcPool1Fs1@zipper_1932-02-01T17:30:34_testBackupSet	50000		',
@@ -433,20 +417,14 @@ class BackuperTests(unittest.TestCase):
         recorder = TestBackupRecorder(self.id())
         self._twoFsBackup(zfs, recorder, backupPool=self.backupPool2)
         self._assertActions(zfs,
-                            ['zfs send -P -i srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet srcPool1/srcPool1Fs1@zipper_1932-02-01T17:30:34_testBackupSet | zfs receive backupPool2/srcPool1/srcPool1Fs1@zipper_1932-02-01T17:30:34_testBackupSet.tmp',
-                             'zfs rename backupPool2/srcPool1/srcPool1Fs1@zipper_1932-02-01T17:30:34_testBackupSet.tmp backupPool2/srcPool1/srcPool1Fs1@zipper_1932-02-01T17:30:34_testBackupSet',
-                             'zfs send -P -i srcPool1/srcPool1Fs1@zipper_1932-02-01T17:30:34_testBackupSet srcPool1/srcPool1Fs1@zipper_1932-03-02T17:30:34_testBackupSet | zfs receive backupPool2/srcPool1/srcPool1Fs1@zipper_1932-03-02T17:30:34_testBackupSet.tmp',
-                             'zfs rename backupPool2/srcPool1/srcPool1Fs1@zipper_1932-03-02T17:30:34_testBackupSet.tmp backupPool2/srcPool1/srcPool1Fs1@zipper_1932-03-02T17:30:34_testBackupSet',
+                            ['zfs send -P -i srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet srcPool1/srcPool1Fs1@zipper_1932-02-01T17:30:34_testBackupSet | zfs receive backupPool2/srcPool1/srcPool1Fs1@zipper_1932-02-01T17:30:34_testBackupSet',
+                             'zfs send -P -i srcPool1/srcPool1Fs1@zipper_1932-02-01T17:30:34_testBackupSet srcPool1/srcPool1Fs1@zipper_1932-03-02T17:30:34_testBackupSet | zfs receive backupPool2/srcPool1/srcPool1Fs1@zipper_1932-03-02T17:30:34_testBackupSet',
                              'zfs snapshot srcPool1/srcPool1Fs1@zipper_2022-02-01T00:00:02_testBackupSet',
-                             'zfs send -P -i srcPool1/srcPool1Fs1@zipper_1932-03-02T17:30:34_testBackupSet srcPool1/srcPool1Fs1@zipper_2022-02-01T00:00:02_testBackupSet | zfs receive backupPool2/srcPool1/srcPool1Fs1@zipper_2022-02-01T00:00:02_testBackupSet.tmp',
-                             'zfs rename backupPool2/srcPool1/srcPool1Fs1@zipper_2022-02-01T00:00:02_testBackupSet.tmp backupPool2/srcPool1/srcPool1Fs1@zipper_2022-02-01T00:00:02_testBackupSet',
-                             'zfs send -P -i srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet srcPool1/srcPool1Fs2@zipper_1932-02-01T17:30:34_testBackupSet | zfs receive backupPool2/srcPool1/srcPool1Fs2@zipper_1932-02-01T17:30:34_testBackupSet.tmp',
-                             'zfs rename backupPool2/srcPool1/srcPool1Fs2@zipper_1932-02-01T17:30:34_testBackupSet.tmp backupPool2/srcPool1/srcPool1Fs2@zipper_1932-02-01T17:30:34_testBackupSet',
-                             'zfs send -P -i srcPool1/srcPool1Fs2@zipper_1932-02-01T17:30:34_testBackupSet srcPool1/srcPool1Fs2@zipper_1932-03-02T17:30:34_testBackupSet | zfs receive backupPool2/srcPool1/srcPool1Fs2@zipper_1932-03-02T17:30:34_testBackupSet.tmp',
-                             'zfs rename backupPool2/srcPool1/srcPool1Fs2@zipper_1932-03-02T17:30:34_testBackupSet.tmp backupPool2/srcPool1/srcPool1Fs2@zipper_1932-03-02T17:30:34_testBackupSet',
+                             'zfs send -P -i srcPool1/srcPool1Fs1@zipper_1932-03-02T17:30:34_testBackupSet srcPool1/srcPool1Fs1@zipper_2022-02-01T00:00:02_testBackupSet | zfs receive backupPool2/srcPool1/srcPool1Fs1@zipper_2022-02-01T00:00:02_testBackupSet',
+                             'zfs send -P -i srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet srcPool1/srcPool1Fs2@zipper_1932-02-01T17:30:34_testBackupSet | zfs receive backupPool2/srcPool1/srcPool1Fs2@zipper_1932-02-01T17:30:34_testBackupSet',
+                             'zfs send -P -i srcPool1/srcPool1Fs2@zipper_1932-02-01T17:30:34_testBackupSet srcPool1/srcPool1Fs2@zipper_1932-03-02T17:30:34_testBackupSet | zfs receive backupPool2/srcPool1/srcPool1Fs2@zipper_1932-03-02T17:30:34_testBackupSet',
                              'zfs snapshot srcPool1/srcPool1Fs2@zipper_2022-02-01T00:00:06_testBackupSet',
-                             'zfs send -P -i srcPool1/srcPool1Fs2@zipper_1932-03-02T17:30:34_testBackupSet srcPool1/srcPool1Fs2@zipper_2022-02-01T00:00:06_testBackupSet | zfs receive backupPool2/srcPool1/srcPool1Fs2@zipper_2022-02-01T00:00:06_testBackupSet.tmp',
-                             'zfs rename backupPool2/srcPool1/srcPool1Fs2@zipper_2022-02-01T00:00:06_testBackupSet.tmp backupPool2/srcPool1/srcPool1Fs2@zipper_2022-02-01T00:00:06_testBackupSet'])
+                             'zfs send -P -i srcPool1/srcPool1Fs2@zipper_1932-03-02T17:30:34_testBackupSet srcPool1/srcPool1Fs2@zipper_2022-02-01T00:00:06_testBackupSet | zfs receive backupPool2/srcPool1/srcPool1Fs2@zipper_2022-02-01T00:00:06_testBackupSet',])
         self._assertRecorded(recorder,
                              ['2022-02-01T00:00:00	testBackupSet	backupPool2	incr	srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet	srcPool1/srcPool1Fs1@zipper_1932-02-01T17:30:34_testBackupSet	backupPool2/srcPool1/srcPool1Fs1@zipper_1932-02-01T17:30:34_testBackupSet	50000		',
                               '2022-02-01T00:00:01	testBackupSet	backupPool2	incr	srcPool1/srcPool1Fs1@zipper_1932-02-01T17:30:34_testBackupSet	srcPool1/srcPool1Fs1@zipper_1932-03-02T17:30:34_testBackupSet	backupPool2/srcPool1/srcPool1Fs1@zipper_1932-03-02T17:30:34_testBackupSet	50000		',
@@ -491,17 +469,13 @@ class BackuperTests(unittest.TestCase):
         self._twoFsBackup(zfs, recorder, backupPool=self.backupPool2)
         self._assertActions(zfs,
                             ['zfs create backupPool2/srcPool1/srcPool1Fs1',
-                             'zfs send -P srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet | zfs receive -F backupPool2/srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet.tmp',
-                             'zfs rename backupPool2/srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet.tmp backupPool2/srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet',
+                             'zfs send -P srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet | zfs receive -F backupPool2/srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet',
                              'zfs snapshot srcPool1/srcPool1Fs1@zipper_1977-02-01T00:00:01_testBackupSet',
-                             'zfs send -P -i srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet srcPool1/srcPool1Fs1@zipper_1977-02-01T00:00:01_testBackupSet | zfs receive backupPool2/srcPool1/srcPool1Fs1@zipper_1977-02-01T00:00:01_testBackupSet.tmp',
-                             'zfs rename backupPool2/srcPool1/srcPool1Fs1@zipper_1977-02-01T00:00:01_testBackupSet.tmp backupPool2/srcPool1/srcPool1Fs1@zipper_1977-02-01T00:00:01_testBackupSet',
+                             'zfs send -P -i srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet srcPool1/srcPool1Fs1@zipper_1977-02-01T00:00:01_testBackupSet | zfs receive backupPool2/srcPool1/srcPool1Fs1@zipper_1977-02-01T00:00:01_testBackupSet',
                              'zfs create backupPool2/srcPool1/srcPool1Fs2',
-                             'zfs send -P srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet | zfs receive -F backupPool2/srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet.tmp',
-                             'zfs rename backupPool2/srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet.tmp backupPool2/srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet',
+                             'zfs send -P srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet | zfs receive -F backupPool2/srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet',
                              'zfs snapshot srcPool1/srcPool1Fs2@zipper_1977-02-01T00:00:04_testBackupSet',
-                             'zfs send -P -i srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet srcPool1/srcPool1Fs2@zipper_1977-02-01T00:00:04_testBackupSet | zfs receive backupPool2/srcPool1/srcPool1Fs2@zipper_1977-02-01T00:00:04_testBackupSet.tmp',
-                             'zfs rename backupPool2/srcPool1/srcPool1Fs2@zipper_1977-02-01T00:00:04_testBackupSet.tmp backupPool2/srcPool1/srcPool1Fs2@zipper_1977-02-01T00:00:04_testBackupSet'])
+                             'zfs send -P -i srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet srcPool1/srcPool1Fs2@zipper_1977-02-01T00:00:04_testBackupSet | zfs receive backupPool2/srcPool1/srcPool1Fs2@zipper_1977-02-01T00:00:04_testBackupSet',])
         self._assertRecorded(recorder,
                              ['1977-02-01T00:00:00	testBackupSet	backupPool2	full	srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet		backupPool2/srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet	50000		',
                               '1977-02-01T00:00:02	testBackupSet	backupPool2	incr	srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet	srcPool1/srcPool1Fs1@zipper_1977-02-01T00:00:01_testBackupSet	backupPool2/srcPool1/srcPool1Fs1@zipper_1977-02-01T00:00:01_testBackupSet	50000		',
@@ -539,12 +513,10 @@ class BackuperTests(unittest.TestCase):
         self._assertActions(zfs,
                             ['zfs create backupPool1/srcPool1/srcPool1Fs1',
                              'zfs snapshot srcPool1/srcPool1Fs1@zipper_1982-02-01T00:00:00_testBackupSet',
-                             'zfs send -P srcPool1/srcPool1Fs1@zipper_1982-02-01T00:00:00_testBackupSet | zfs receive -F backupPool1/srcPool1/srcPool1Fs1@zipper_1982-02-01T00:00:00_testBackupSet.tmp',
-                             'zfs rename backupPool1/srcPool1/srcPool1Fs1@zipper_1982-02-01T00:00:00_testBackupSet.tmp backupPool1/srcPool1/srcPool1Fs1@zipper_1982-02-01T00:00:00_testBackupSet',
+                             'zfs send -P srcPool1/srcPool1Fs1@zipper_1982-02-01T00:00:00_testBackupSet | zfs receive -F backupPool1/srcPool1/srcPool1Fs1@zipper_1982-02-01T00:00:00_testBackupSet',
                              'zfs create backupPool1/srcPool1/srcPool1Fs2',
                              'zfs snapshot srcPool1/srcPool1Fs2@zipper_1982-02-01T00:00:02_testBackupSet',
-                             'zfs send -P srcPool1/srcPool1Fs2@zipper_1982-02-01T00:00:02_testBackupSet | zfs receive -F backupPool1/srcPool1/srcPool1Fs2@zipper_1982-02-01T00:00:02_testBackupSet.tmp',
-                             'zfs rename backupPool1/srcPool1/srcPool1Fs2@zipper_1982-02-01T00:00:02_testBackupSet.tmp backupPool1/srcPool1/srcPool1Fs2@zipper_1982-02-01T00:00:02_testBackupSet'])
+                             'zfs send -P srcPool1/srcPool1Fs2@zipper_1982-02-01T00:00:02_testBackupSet | zfs receive -F backupPool1/srcPool1/srcPool1Fs2@zipper_1982-02-01T00:00:02_testBackupSet',])
         self._assertRecorded(recorder,
                              ['1982-02-01T00:00:01	testBackupSet	backupPool1	full	srcPool1/srcPool1Fs1@zipper_1982-02-01T00:00:00_testBackupSet		backupPool1/srcPool1/srcPool1Fs1@zipper_1982-02-01T00:00:00_testBackupSet	50000		',
                               '1982-02-01T00:00:03	testBackupSet	backupPool1	full	srcPool1/srcPool1Fs2@zipper_1982-02-01T00:00:02_testBackupSet		backupPool1/srcPool1/srcPool1Fs2@zipper_1982-02-01T00:00:02_testBackupSet	50000		'])
@@ -562,51 +534,6 @@ class BackuperTests(unittest.TestCase):
                          'pool: backupPool2'])
         del recorder
 
-    def testIncr1PrevFail(self):
-        # test handling where a previous version has failed.
-        GmtTimeFaker.setTime("2001-01-02")
-        failedPool1Fs1SnapName = self.pool1Fs1SnapNames[0] + ".tmp"
-        zfs = self._mkBackupPool1Zfs(self.pool1Fs1SnapNames[0:1], self.pool1Fs2SnapNames[0:1],
-                                     (failedPool1Fs1SnapName,))
-        recorder = TestBackupRecorder(self.id())
-        self._twoFsBackup(zfs, recorder)
-        self._assertActions(zfs,
-                            ['zfs destroy -fp backupPool1/srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet.tmp',
-                             'zfs send -P srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet | zfs receive -F backupPool1/srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet.tmp',
-                             'zfs rename backupPool1/srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet.tmp backupPool1/srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet',
-                             'zfs snapshot srcPool1/srcPool1Fs1@zipper_2001-01-02T00:00:02_testBackupSet',
-                             'zfs send -P -i srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet srcPool1/srcPool1Fs1@zipper_2001-01-02T00:00:02_testBackupSet | zfs receive backupPool1/srcPool1/srcPool1Fs1@zipper_2001-01-02T00:00:02_testBackupSet.tmp',
-                             'zfs rename backupPool1/srcPool1/srcPool1Fs1@zipper_2001-01-02T00:00:02_testBackupSet.tmp backupPool1/srcPool1/srcPool1Fs1@zipper_2001-01-02T00:00:02_testBackupSet',
-                             'zfs create backupPool1/srcPool1/srcPool1Fs2',
-                             'zfs send -P srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet | zfs receive -F backupPool1/srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet.tmp',
-                             'zfs rename backupPool1/srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet.tmp backupPool1/srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet',
-                             'zfs snapshot srcPool1/srcPool1Fs2@zipper_2001-01-02T00:00:05_testBackupSet',
-                             'zfs send -P -i srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet srcPool1/srcPool1Fs2@zipper_2001-01-02T00:00:05_testBackupSet | zfs receive backupPool1/srcPool1/srcPool1Fs2@zipper_2001-01-02T00:00:05_testBackupSet.tmp',
-                             'zfs rename backupPool1/srcPool1/srcPool1Fs2@zipper_2001-01-02T00:00:05_testBackupSet.tmp backupPool1/srcPool1/srcPool1Fs2@zipper_2001-01-02T00:00:05_testBackupSet'])
-        self._assertRecorded(recorder,
-                             ['2001-01-02T00:00:00	testBackupSet	backupPool1	destroytmp			backupPool1/srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet.tmp	50000		',
-                              '2001-01-02T00:00:01	testBackupSet	backupPool1	full	srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet		backupPool1/srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet	50000		',
-                              '2001-01-02T00:00:03	testBackupSet	backupPool1	incr	srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet	srcPool1/srcPool1Fs1@zipper_2001-01-02T00:00:02_testBackupSet	backupPool1/srcPool1/srcPool1Fs1@zipper_2001-01-02T00:00:02_testBackupSet	50000		',
-                              '2001-01-02T00:00:04	testBackupSet	backupPool1	full	srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet		backupPool1/srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet	50000		',
-                              '2001-01-02T00:00:06	testBackupSet	backupPool1	incr	srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet	srcPool1/srcPool1Fs2@zipper_2001-01-02T00:00:05_testBackupSet	backupPool1/srcPool1/srcPool1Fs2@zipper_2001-01-02T00:00:05_testBackupSet	50000		'])
-        self._assertZfs(zfs,
-                        ['pool: srcPool1',
-                         '  filesystem: srcPool1/srcPool1Fs1',
-                         '    snapshot: srcPool1/srcPool1Fs1@otherSnap1',
-                         '    snapshot: srcPool1/srcPool1Fs1@otherSnap2',
-                         '    snapshot: srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet',
-                         '    snapshot: srcPool1/srcPool1Fs1@zipper_2001-01-02T00:00:02_testBackupSet',
-                         '  filesystem: srcPool1/srcPool1Fs2',
-                         '    snapshot: srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet',
-                         '    snapshot: srcPool1/srcPool1Fs2@zipper_2001-01-02T00:00:05_testBackupSet',
-                         'pool: backupPool1',
-                         '  filesystem: backupPool1/srcPool1/srcPool1Fs1',
-                         '    snapshot: backupPool1/srcPool1/srcPool1Fs1@zipper_1932-01-01T17:30:34_testBackupSet',
-                         '    snapshot: backupPool1/srcPool1/srcPool1Fs1@zipper_2001-01-02T00:00:02_testBackupSet',
-                         '  filesystem: backupPool1/srcPool1/srcPool1Fs2',
-                         '    snapshot: backupPool1/srcPool1/srcPool1Fs2@zipper_1932-01-01T17:30:34_testBackupSet',
-                         '    snapshot: backupPool1/srcPool1/srcPool1Fs2@zipper_2001-01-02T00:00:05_testBackupSet'])
-        del recorder
 
 def suite():
     suite = unittest.TestSuite()

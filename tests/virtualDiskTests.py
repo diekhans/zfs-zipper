@@ -120,22 +120,6 @@ config = BackupConf([backupSetConf],
         # try restriction arguments
         self._runZfsZipper(configPy, backupSet=self.testBackupSetName, sourceFileSystems=[self.testSourceFs1, self.testSourceFs2])
 
-    def _test1Incr3WithTmp(self, sourcePool, backupPool, configPy):
-        # seed backups
-        self._writeTestFiles(sourcePool, self.testSourceFs1, self.testSourceFs1Files[0:2], self._upcaseFunc)
-        self._writeTestFiles(sourcePool, self.testSourceFs2, self.testSourceFs2Files[2:2], self._upcaseFunc)
-        self._runZfsZipper(configPy, backupSet=self.testBackupSetName, sourceFileSystems=[self.testSourceFs1, self.testSourceFs2])
-
-        # get latest backup snapshot and rename to .tmp
-        zfs = Zfs()
-        backupFs = backupPool.poolName + "/" + self.testSourceFs1
-        backupSnapshots = zfs.listSnapshots(backupFs)
-        zfs.renameSnapshot(backupSnapshots[-1], backupSnapshots[-1].name + ".tmp")
-
-        # try again
-        self._writeTestFiles(sourcePool, self.testSourceFs2, self.testSourceFs2Files[2:2], self._upcaseFunc)
-        self._runZfsZipper(configPy, backupSet=self.testBackupSetName, sourceFileSystems=[self.testSourceFs1, self.testSourceFs2])
-
     def _test1Incr3(self, sourcePool, configPy):
         self._writeTestFiles(sourcePool, self.testSourceFs1, self.testSourceFs1Files[0:2], self._upcaseFunc)
         self._writeTestFiles(sourcePool, self.testSourceFs2, self.testSourceFs2Files[2:2], self._upcaseFunc)
@@ -148,18 +132,6 @@ config = BackupConf([backupSetConf],
         self._writeTestFiles(sourcePool, self.testSourceFs1, self.testSourceFs1Files[1:3], self._upcaseFunc)
         self._writeTestFiles(sourcePool, self.testSourceFs2, self.testSourceFs2Files[0:2], self._upcaseFunc)
         self._runZfsZipper(configPy, snapOnly=True)
-
-    def FIXME_test1FullOverwriteFail(self, sourcePool, backupPool, configPy):
-        ok = False
-        try:
-            self._runZfsZipper(configPy)
-            ok = True
-        except Exception as ex:
-            expectMsg = "zfszipper_test_source to zfszipper_test_backupA/zfszipper_test_source: full backup snapshots exists and overwrite not specified"
-            if str(ex).find(expectMsg) < 0:
-                raise Exception("expected error with message containing '{}', got '{}'".format(expectMsg, str(ex)))
-        if ok:
-            raise Exception("Excepted failure, didn't get exception")
 
     def runTest1(self, noClean):
         # FIXME:  See to-do on testing autoimport
@@ -175,17 +147,11 @@ config = BackupConf([backupSetConf],
         self._test1Incr1(sourcePool, backupPoolA, configPy)
         self._test1Incr2(sourcePool, backupPoolA, configPy)
 
-        # fake a failed run with tmp snapshot on backup
-        self._test1Incr3WithTmp(sourcePool, backupPoolA, configPy)
-
         # pool discover
         self._test1Incr3(sourcePool, configPy)
 
         # just make snapshots
         self._test1Incr4SnapOnly(sourcePool, backupPoolA, configPy)
-
-        # attempt at overwriting
-        # FIXME: self._test1FullOverwriteFail(sourcePool, backupPoolA, configPy)
 
         if not noClean:
             self.cleanup()

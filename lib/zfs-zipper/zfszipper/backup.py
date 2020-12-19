@@ -120,45 +120,17 @@ class FsBackup(object):
                              backupSnap=backupSnapshot.getSnapshotName(),
                              size=info0[3])
 
-    def _recordDestroyTmp(self, backupSnapshotTmp, info):
-        # destroy	osprey_zackup1a/b_pool/photo_b@foo
-        # reclaim	0
-        if len(info) != 2:
-            raise BackupError("expected 2 lines from ZFS destroy, got: " + str(info))
-        info1 = info[1]
-        if len(info1) != 2:
-            raise BackupError("expected 2 columns in ZFS destroy record, got: " + str(info1))
-        if info1[0] != "reclaim":
-            raise BackupError("expected 'reclaim' in column 0 of ZFS destroy record, got: " + str(info1))
-        self.recorder.record(self.backupSetConf, self.backupPool, "destroytmp",
-                             backupSnap=backupSnapshotTmp.getSnapshotName(),
-                             size=info1[1])
-
-    def _setupTmpSnapShot(self, backupSnapshot):
-        """Get tmp snapshot name to use while sending so that a partial send doesn't
-        get mistaken for complete.  If an existing tmp snapshot exists, delete with warning."""
-        backupSnapshotTmp = backupSnapshot.createTmpSnapshot()
-        return backupSnapshotTmp
-
-    def _installTmpSnapShot(self, backupSnapshotTmp, backupSnapshot):
-        logger.info("install tmp snapshot {} -> {}".format(backupSnapshotTmp, backupSnapshot))
-        self.zfs.renameSnapshot(backupSnapshotTmp, backupSnapshot)
-
     def _sendFull(self, sourceSnapshot):
         backupSnapshot = sourceSnapshot.createFromSnapshot(self.backupFileSystemName)
-        backupSnapshotTmp = self._setupTmpSnapShot(backupSnapshot)
-        logger.info("send full snapshot {} -> {}".format(sourceSnapshot, backupSnapshotTmp))
-        info = self.zfs.sendRecvFull(sourceSnapshot.getSnapshotName(), backupSnapshotTmp.getSnapshotName())
-        self._installTmpSnapShot(backupSnapshotTmp, backupSnapshot)
+        logger.info("send full snapshot {} -> {}".format(sourceSnapshot, backupSnapshot))
+        info = self.zfs.sendRecvFull(sourceSnapshot.getSnapshotName(), backupSnapshot.getSnapshotName())
         self._recordFull(sourceSnapshot, backupSnapshot, info)
         return backupSnapshot
 
     def _sendIncr(self, prevSourceSnapshot, sourceSnapshot):
         backupSnapshot = sourceSnapshot.createFromSnapshot(self.backupFileSystemName)
-        backupSnapshotTmp = self._setupTmpSnapShot(backupSnapshot)
-        logger.info("send incr snapshot {}..{} -> {}".format(prevSourceSnapshot, sourceSnapshot, backupSnapshotTmp))
-        info = self.zfs.sendRecvIncr(prevSourceSnapshot.getSnapshotName(), sourceSnapshot.getSnapshotName(), backupSnapshotTmp.getSnapshotName())
-        self._installTmpSnapShot(backupSnapshotTmp, backupSnapshot)
+        logger.info("send incr snapshot {}..{} -> {}".format(prevSourceSnapshot, sourceSnapshot, backupSnapshot))
+        info = self.zfs.sendRecvIncr(prevSourceSnapshot.getSnapshotName(), sourceSnapshot.getSnapshotName(), backupSnapshot.getSnapshotName())
         self._recordIncr(prevSourceSnapshot, sourceSnapshot, backupSnapshot, info)
         return backupSnapshot
 
@@ -191,18 +163,8 @@ class FsBackup(object):
         newestCommonSourceSnapshot = self._backupIncrExisting(newestCommonSourceSnapshot)
         self._sendIncr(newestCommonSourceSnapshot, self._createSourceSnapshot())
 
-    def _destroyTmpBackupSnapshots(self):
-        """destroy temporary back snapshots, unclear if zfs receive is atomic,
-        but this is extra paranoid to create these.  Plus is makes is easier
-        to see what is going on with a live systems"""
-        for backupSnapshotTmp in self.backupSnapshots.tmpSnapshots:
-            logging.warning("destroying existing tmp snapshot from failed backup: {}".format(backupSnapshotTmp.getSnapshotName()))
-            info = self.zfs.destroySnapshot(backupSnapshotTmp)
-            self._recordDestroyTmp(backupSnapshotTmp, info)
-
     def _backup(self):
         self._setupBackupPoolFs()
-        self._destroyTmpBackupSnapshots()
         if len(self.sourceSnapshots) == 0:
             self._backupNewSource()
         else:
