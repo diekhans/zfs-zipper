@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """ZFS-based backup driver with rotating backup sets.
 
-A BackupSet consists of BackupPools, for backing up the same set of source
-data and can be rotated.  A BackupPool could be a single disk or a RAID pool.
+A BackupSet consists of one or more BackupPools for backing up the same set of
+source data and can be rotated.  A BackupSet contained one or more ZFS files
+systems to back up.
 
 The source file system structure is reproduced under the top level BackupPool
 file system. Snapshots of the source file systems are use to manage the backup
@@ -17,16 +18,15 @@ Older versions names snapshots in the forms:
     zipper_<GMT>_<backupset>_full
     zipper_<GMT>_<backupset>_incr
 However, the concept of full vs increment wasn't useful and these extensions
-are now just part of the name and not added for new snapshots.  It the future,
-other suffixes might be used as some kind of tagging system.
+are now just part of the name and not added for new snapshots
 
 When a backup is started, a new snapshot is made on the source file system.
 Incremental snapshots are sent to the backup file system starting after
 the most recent common snapshot to the new source snapshot.
 
-If there are not zfs-zipper snapshots on the backup file system,
-all snapshots are copied.  If there are zfs-zipper snapshots, but
-no common ones, it is currently an error.
+If there are no zfs-zipper snapshots on the backup file system, all snapshots
+are copied.  If there are zfs-zipper snapshots, but no common ones, it is
+currently an error.
 
 This has also been used to clone all backups to a new file system.
 
