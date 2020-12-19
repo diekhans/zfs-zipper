@@ -81,7 +81,7 @@ def parseCommand():
     parser.add_argument("--allowDegraded", dest="allowDegraded", action="store_true", default=False,
                         help="""Allow backup to a degraded pool""")
     parser.add_argument("backupSetNames", metavar="backupSetName", default=[], nargs='*',
-                        help="""Backup only these sets.  If not specified, all sets in config file are backed up.""")
+                        help="""Backup only these sets.  If not specified, all sets in with available backup pools are backed up.  With --snapOnly, all sets have snapshots made if not specified.""")
     args = parser.parse_args()
     setattr(args, "config", evalConfigFile(args.configPy))
     if args.verboseLevel is not None:
@@ -112,11 +112,38 @@ class Backup(object):
         self.allowDegraded = allowDegraded
         self.lockFh = None
 
+    def _getAvailablePools(self):
+        "get all imported or exported pools"
+        return self.zfs.listExportedPools() + self.zfs.listPools()
+
+    def _havePoolForSet(self, availPools, backupSet):
+        for availPool in availPools:
+            if availPool.name in backupSet.byBackupPoolName:
+                return True
+        return False
+
+    def _getActiveBackupSetsByName(self, availPools):
+        backupSets = [self.config.getBackupSet(bs) for bs in self.backupSetNames]
+        for backupSet in backupSets:
+            if not self._havePoolForSet(availPools, backupSet):
+                raise Exception("no back pool available for {}".format(backupSet.name))
+        return backupSets
+
+    def _getActiveBackupSetsByPools(self, availPools):
+        backupSets = []
+        for backupSet in self.config.backupSets:
+            if self._havePoolForSet(availPools, backupSet):
+                backupSets.append(backupSet)
+        if len(backupSets) == 0:
+            raise Exception("no back pools available for any backupset")
+        return backupSets
+
     def _getActiveBackupSets(self):
+        availPools = self._getAvailablePools()
         if len(self.backupSetNames) > 0:
-            return [self.config.getBackupSet(bs) for bs in self.backupSetNames]
+            return self._getActiveBackupSetsByName(availPools)
         else:
-            return self.config.backupSets
+            return self._getActiveBackupSetsByPools(availPools)
 
     def __obtainLock(self):
         self.lockFh = open(self.config.lockFile, "w")

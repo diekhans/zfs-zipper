@@ -142,20 +142,20 @@ class BackuperTests(unittest.TestCase):
                                  "srcPool1/srcPool1Fs2"],
                                 [BackupPoolConf("backupPool1"),
                                  BackupPoolConf("backupPool2")])
-    srcPool1 = ZfsPool("srcPool1", ZfsPoolHealth.ONLINE)
+    srcPool1 = ZfsPool("srcPool1", True, ZfsPoolHealth.ONLINE)
     srcPool1Fs1 = fakeZfsFileSystem("srcPool1/srcPool1Fs1")
     srcPool1Fs1StraySnapNames = ("otherSnap1", "otherSnap2")
     srcPool1Fs2 = fakeZfsFileSystem("srcPool1/srcPool1Fs2")
 
-    backupPool1 = ZfsPool("backupPool1", ZfsPoolHealth.ONLINE)
+    backupPool1 = ZfsPool("backupPool1", True, ZfsPoolHealth.ONLINE)
     backupPool1Fs1 = fakeZfsFileSystem("backupPool1/srcPool1/srcPool1Fs1")
     backupPool1Fs2 = fakeZfsFileSystem("backupPool1/srcPool1/srcPool1Fs2")
 
-    backupPool2 = ZfsPool("backupPool2", ZfsPoolHealth.ONLINE)
+    backupPool2 = ZfsPool("backupPool2", True, ZfsPoolHealth.ONLINE)
     backupPool2Fs1 = fakeZfsFileSystem("backupPool2/srcPool1/srcPool1Fs1")
     backupPool2Fs2 = fakeZfsFileSystem("backupPool2/srcPool1/srcPool1Fs2")
 
-    backupPool2Off = ZfsPool("backupPool2", ZfsPoolHealth.OFFLINE)
+    backupPool2Off = ZfsPool("backupPool2", True, ZfsPoolHealth.OFFLINE)
 
     pool1Fs1SnapNames = ('zipper_1932-01-01T17:30:34_testBackupSet',
                          'zipper_1932-02-01T17:30:34_testBackupSet',

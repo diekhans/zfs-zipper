@@ -37,10 +37,14 @@ ${pycCompileDone}: ${libPyFiles}
 	PYTHONPATH=lib/zfs-zipper ${PYTHON} -B -c 'import compileall; compileall.compile_dir("${libPyDir}")'
 	touch $@
 
+tags: etags
+etags:
+	etags-emacs --language=python ${libPyFiles} ${sbinProgs}
+
 # must clean tests first, as it runs python code.
 clean:
 	cd tests && ${MAKE} clean
-	rm -rf __pycache__ ${libPycDir}
+	rm -rf __pycache__ ${libPycDir} TAGS
 
 flake8: link
 lint:

@@ -136,6 +136,14 @@ config = BackupConf([backupSetConf],
         self._writeTestFiles(sourcePool, self.testSourceFs2, self.testSourceFs2Files[2:2], self._upcaseFunc)
         self._runZfsZipper(configPy, backupSet=self.testBackupSetName, sourceFileSystems=[self.testSourceFs1, self.testSourceFs2])
 
+    def _test1Incr3(self, sourcePool, configPy):
+        self._writeTestFiles(sourcePool, self.testSourceFs1, self.testSourceFs1Files[0:2], self._upcaseFunc)
+        self._writeTestFiles(sourcePool, self.testSourceFs2, self.testSourceFs2Files[2:2], self._upcaseFunc)
+        self._writeTestFiles(sourcePool, self.testSourceFs1, self.testSourceFs1Files2)
+        self._writeTestFiles(sourcePool, self.testSourceFs2, self.testSourceFs2Files2)
+        # try with pool discovery
+        self._runZfsZipper(configPy)
+
     def _test1Incr4SnapOnly(self, sourcePool, backupPool, configPy):
         self._writeTestFiles(sourcePool, self.testSourceFs1, self.testSourceFs1Files[1:3], self._upcaseFunc)
         self._writeTestFiles(sourcePool, self.testSourceFs2, self.testSourceFs2Files[0:2], self._upcaseFunc)
@@ -169,6 +177,9 @@ config = BackupConf([backupSetConf],
 
         # fake a failed run with tmp snapshot on backup
         self._test1Incr3WithTmp(sourcePool, backupPoolA, configPy)
+
+        # pool discover
+        self._test1Incr3(sourcePool, configPy)
 
         # just make snapshots
         self._test1Incr4SnapOnly(sourcePool, backupPoolA, configPy)

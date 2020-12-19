@@ -247,7 +247,7 @@ class BackupSetBackup(object):
 
     def _getExportedPools(self):
         pools = []
-        for pool in self.zfs.listExported():
+        for pool in self.zfs.listExportedPools():
             if (pool.name in self.backupSetConf.backupPoolNames) and (pool.health in (ZfsPoolHealth.ONLINE, ZfsPoolHealth.DEGRADED)):
                 pools.append(pool)
         return pools

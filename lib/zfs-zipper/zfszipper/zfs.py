@@ -14,8 +14,8 @@ class Zfs(object):
         self.cmdRunner = CmdRunner()
 
     def listPools(self):
-        "returns list of ZfsPool"
-        return [ZfsPool(name, getZfsPoolHealth(health))
+        "returns list of ZfsPool for imported pools"
+        return [ZfsPool(name, True, getZfsPoolHealth(health))
                 for name, health in self.cmdRunner.callTabSplit(["zpool", "list", "-H", "-o", "name,health"])]
 
     def _listExportedParsePool(self, poolName, lineIter):
@@ -23,10 +23,10 @@ class Zfs(object):
         for line in lineIter:
             m = re.match("^  state: (.*)$", line)
             if m is not None:
-                return ZfsPool(poolName, getZfsPoolHealth(m.group(1)))
+                return ZfsPool(poolName, False, getZfsPoolHealth(m.group(1)))
         raise Exception("zpool export parsing error: `state:' not found")
 
-    def listExported(self):
+    def listExportedPools(self):
         "list exported pools available for import"
         exported = []
         lineIter = iter(self.cmdRunner.call(["zpool", "import"]))
@@ -36,20 +36,12 @@ class Zfs(object):
                 exported.append(self._listExportedParsePool(m.group(1), lineIter))
         return exported
 
-    def havePool(self, poolName):
-        "determine if a pool exists"
-        for name in self.cmdRunner.call(["zpool", "list", "-H", "-o", "name"]):
-            if name == poolName:
-                return True
-        return False
-
     def findPool(self, poolName):
         "returns ZfsPool or None"
-        if not self.havePool(poolName):
-            return None
-        else:
-            results = self.cmdRunner.callTabSplit(["zpool", "list", "-H", "-o", "name,health", poolName])
-            return ZfsPool(results[0][0], getZfsPoolHealth(results[0][1]))
+        for result in self.cmdRunner.callTabSplit(["zpool", "list", "-H", "-o", "name,health"]):
+            if result[0] == poolName:
+                return ZfsPool(result[0], True, getZfsPoolHealth(result[1]))
+        return None
 
     def listFileSystems(self, poolSpec):
         "returns list of ZfsFileSystem, Pool can be name or object"
@@ -161,5 +153,5 @@ class ZfsFileSystem(object):
         else:
             raise ValueError("invalid value for mounted: " + str(mounted))
 
-class ZfsPool(namedtuple("ZfsPool", ("name", "health"))):
+class ZfsPool(namedtuple("ZfsPool", ("name", "imported", "health"))):
     __slots__ = ()
