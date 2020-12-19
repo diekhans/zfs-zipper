@@ -13,7 +13,6 @@ if os.uname()[0] == 'Darwin':
     from macVirtualZfs import zfsVirtualCreatePool, zfsVirtualCleanup
 else:
     from freeBsdVirtualZfs import zfsVirtualCreatePool, zfsVirtualCleanup
-from zfszipper.zfs import Zfs
 
 def writeConfigPy(testEtcDir, codeStr):
     ensureDir(testEtcDir)
