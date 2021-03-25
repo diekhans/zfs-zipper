@@ -112,6 +112,14 @@ class Backup(object):
         self.allowDegraded = allowDegraded
         self.lockFh = None
 
+    def _getSnapOnlyBackupsSets(self):
+        """get backup sets to use for snapOnly"""
+        if len(self.backupSetNames) > 0:
+            return [self.config.getBackupSet(bs) for bs in self.backupSetNames]
+        else:
+            return tuple(self.config.backupSets)
+
+
     def _getAvailablePools(self):
         "get all imported or exported pools"
         return self.zfs.listExportedPools() + self.zfs.listPools()
@@ -164,7 +172,11 @@ class Backup(object):
 
     def runBackups(self):
         self.__obtainLock()
-        for backupSetConf in self._getActiveBackupSets():
+        if self.snapOnly:
+            backupSets = self._getSnapOnlyBackupsSets()
+        else:
+            backupSets = self._getActiveBackupSets()
+        for backupSetConf in backupSets:
             self._backupOneSet(backupSetConf, self.sourceFileSystemNames)
 
 def setupLogging(args):
