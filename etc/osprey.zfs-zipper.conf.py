@@ -21,7 +21,8 @@ osprey2Set = BackupSetConf("osprey2",
                             SourceFileSystemConf("kettle/music-library"),],
                            [BackupPoolConf("osprey_zackup2a"),
                             BackupPoolConf("osprey_zackup2b"),
-                            BackupPoolConf("osprey_zackup2c")])
+                            BackupPoolConf("osprey_zackup2c"),
+                            BackupPoolConf("osprey_zackup2tmp")] )
 config = BackupConf([osprey1Set, osprey2Set],
                     lockFile="/var/run/zfszipper.lock",
                     recordFilePattern="/var/db/zfszipper/%Y/%Y-%m.record.tsv")
