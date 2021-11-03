@@ -14,15 +14,15 @@ osprey1Set = BackupSetConf("osprey1",
                            [SourceFileSystemConf("kettle/photo_b")],
                            [BackupPoolConf("osprey_zackup1a"),
                             BackupPoolConf("osprey_zackup1b"),
-                            BackupPoolConf("osprey_zackup1c")])
+                            BackupPoolConf("osprey_zackup1c"),
+                            BackupPoolConf("osprey_zackup1btmp")])
 osprey2Set = BackupSetConf("osprey2",
                            [SourceFileSystemConf("kettle/markd_a"),
                             SourceFileSystemConf("kettle/photo_a"),
                             SourceFileSystemConf("kettle/music-library"),],
                            [BackupPoolConf("osprey_zackup2a"),
                             BackupPoolConf("osprey_zackup2b"),
-                            BackupPoolConf("osprey_zackup2c"),
-                            BackupPoolConf("osprey_zackup2tmp")] )
+                            BackupPoolConf("osprey_zackup2c")] )
 config = BackupConf([osprey1Set, osprey2Set],
                     lockFile="/var/run/zfszipper.lock",
                     recordFilePattern="/var/db/zfszipper/%Y/%Y-%m.record.tsv")

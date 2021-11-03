@@ -96,8 +96,9 @@ class Zfs(object):
         sourceSnapshotName = asNameOrStr(sourceSnapshotSpec)
         backupSnapshotName = asNameOrStr(backupSnapshotSpec)
 
+        # FIXME: should try have option to use receive -s and then be able to restart
         sendCmd = ["zfs", "send", "-P", sourceSnapshotName]
-        recvCmd = ["zfs", "receive", "-s", '-F']
+        recvCmd = ["zfs", "receive", '-F']
         recvCmd.append(backupSnapshotName)
         stderr1, ignored = self.cmdRunner.pipeline2(sendCmd, recvCmd)
         return splitTabLinesToRows(stderr1)
