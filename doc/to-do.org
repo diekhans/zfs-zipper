@@ -1,3 +1,7 @@
+* less verbose dumps on errors by default, removing stack traces on certain exceptions
+change:
+logger.exception("zfs-zipper backup of failed")
+* uses -R on send?
 * make send/receive restartable
 https://unix.stackexchange.com/questions/343675/zfs-on-linux-send-receive-resume-on-poor-bad-ssh-connection
 use tiny FS to test failure.
