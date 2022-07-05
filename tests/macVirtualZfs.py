@@ -3,6 +3,7 @@ support for tests on ZFS in Mac OS/X virtual devices
 """
 import os
 import re
+import time
 from collections import namedtuple
 import plistlib
 from testops import ensureDir, ensureFileDir, runCmd, runCmdStr
@@ -10,7 +11,7 @@ from testops import zfsPoolImport, zfsPoolExport, zfsPoolCreate, zfsPoolDestroy,
 
 def runCmdPlist(cmd):
     "returns parsed plist output"
-    return plistlib.readPlistFromBytes(runCmdStr(cmd, encoding=None))
+    return plistlib.loads(runCmdStr(cmd, encoding=None))
 
 VirtDevice = namedtuple("VirtDevice", ("device", "file"))
 
@@ -44,7 +45,7 @@ class _ZfsVirtualPool(object):
         self.device = None
         self.mntDir = testRootDir + "/mnt"
         self.devFile = testRootDir + "/dev/" + poolName + ".dmg"
-        self.sizeMb = 64
+        self.sizeMb = 256
         # first is main pool fs
         self.fileSystems = tuple([self.ZfsFs(self.poolName, self.mntDir + "/" + self.poolName)]
                                  + [self.ZfsFs(fs, self.mntDir + "/" + fs) for fs in otherFileSystems])
@@ -54,9 +55,14 @@ class _ZfsVirtualPool(object):
         ensureDir(self.mntDir)
         if os.path.exists(self.devFile):
             os.unlink(self.devFile)
-        runCmd(["hdiutil", "create", "-size", str(self.sizeMb) + "m", self.devFile])
+        # must force HFS+ as partitions work with the way we create ZFS
+        runCmd(["hdiutil", "create", "-fs", "HFS+", "-size", str(self.sizeMb) + "m", self.devFile])
         attachPlist = runCmdPlist(["hdiutil", "attach", "-nomount", "-plist", self.devFile])
         self.device = virtualDevListParseDevice(attachPlist)
+
+        # Trying to create a pool on a newly attached virtual device sometimes causes
+        # EBUSY.  Appears a wait helps (yuck)
+        time.sleep(1)
 
     def getFileSystem(self, fileSystemName):
         for zfsFs in self.fileSystems:
@@ -66,7 +72,7 @@ class _ZfsVirtualPool(object):
 
     def setup(self):
         self._createVnodeDisk()
-        zfsPoolCreate(self.fileSystems[0].mountPoint, self.poolName, self.device)
+        zfsPoolCreate(self.fileSystems[0].mountPoint, self.poolName, self.device, force=True)
 
     def createFileSystems(self):
         for zfsFs in self.fileSystems[1:]:

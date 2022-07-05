@@ -31,7 +31,7 @@ class _ZfsVnodePool(object):
         self.unitDev = "/dev/md" + str(unitNum)
         self.devFile = testRootDir + "/dev/unit" + str(unitNum)
         self.mntDir = testRootDir + "/mnt"
-        self.sizeMb = 64
+        self.sizeMb = 256
         # first is main pool fs
         self.fileSystems = tuple([self.ZfsFs(self.poolName, self.mntDir + "/" + self.poolName)]
                                  + [self.ZfsFs(fs, self.mntDir + "/" + fs) for fs in otherFileSystems])

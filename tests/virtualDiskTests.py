@@ -92,7 +92,7 @@ config = BackupConf([backupSetConf],
         if snapOnly:
             cmd.append("--snapOnly")
         if self.zipperLogLevel is not None:
-            cmd.append("--verboseLevel=" + self.zipperLogLevel)
+            cmd.append("--logLevel=" + self.zipperLogLevel)
         if backupSet is not None:
             cmd.append(backupSet)
         runCmd(cmd)

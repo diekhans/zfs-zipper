@@ -60,17 +60,21 @@ def zfsFindTestPools(poolNamePrefix, testRootDir):
                        if fs[0].startswith(poolNamePrefix) and fs[1].startswith(testRootDir)]
     return frozenset([fs[0].split("/")[0] for fs in testFileSystems])
 
-def zfsPoolDestroy(poolName, force=False):
+def zfsPoolDestroy(poolName, *, force=False):
     cmd = ["zpool", "destroy"]
     if force:
         cmd.append("-f")
     cmd.append(poolName)
     runCmd(cmd)
 
-def zfsPoolCreate(mountPoint, poolName, device):
+def zfsPoolCreate(mountPoint, poolName, device, *, force=False):
     if poolName in runCmd(["zpool", "list", "-H", "-o", "name"]):
         zfsPoolDestroy(poolName)
-    runCmd(["zpool", "create", "-m", mountPoint, poolName, device])
+    cmd = ["zpool", "create"]
+    if force:
+        cmd.append('-f')
+    cmd += ["-m", mountPoint, poolName, device]
+    runCmd(cmd)
     runCmd(["zfs", "set", "atime=off", poolName])
 
 def zfsPoolExport(poolName):
