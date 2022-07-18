@@ -1,3 +1,5 @@
+* allow for multiple limited to a particular backup set to allow for live backup
+* allow for backup to different file system name so the individual base file system names don't cause confusion
 * have ZFS subprocess errors raise ZfsError
 * no reason for virtualDiskTests.py to be a class, except for config
 * use pipettor instead of subprocess
@@ -14,12 +16,6 @@ don't need .tmp, the incomplete is there but need to either resume or abort with
 * deal with syslog messages being too long
 * Ideas to move files and snapshots from one pool to another
    https://docs.oracle.com/cd/E18752_01/html/819-5461/gbchx.html#gfwqb
-   logging disabled for the momemt
-* What if a there is a crash while copying a snapshot?  Is it in a partial state.  
-Probably should do a tmpname on snapshop
-
-* get 
-
 * change log to get snap shot sizes from zfs list -t snap
 * fix problem with auto import tests and mac virtual tests
   tests/virtualDiskTests.py
