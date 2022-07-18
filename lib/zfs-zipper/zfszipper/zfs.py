@@ -8,6 +8,10 @@ from enum import Enum
 from .typeOps import asNameOrStr, splitTabLinesToRows
 from .cmdrunner import CmdRunner
 
+class ZfsError(Exception):
+    "exception related to ZFS"
+    pass
+
 class Zfs(object):
     "object to handle all calls to ZFS commands."
     def __init__(self):
@@ -24,7 +28,7 @@ class Zfs(object):
             m = re.match("^  state: (.*)$", line)
             if m is not None:
                 return ZfsPool(poolName, False, getZfsPoolHealth(m.group(1)))
-        raise Exception("zpool export parsing error: `state:' not found")
+        raise ZfsError("zpool export parsing error: `state:' not found")
 
     def listExportedPools(self):
         "list exported pools available for import"
@@ -61,7 +65,7 @@ class Zfs(object):
         "returns a ZfsFileSystem or error"
         fileSystem = self.findFileSystem(fileSystemName)
         if fileSystem is None:
-            raise Exception("can't find ZFS file system {}".format(fileSystemName))
+            raise ZfsError("can't find ZFS file system {}".format(fileSystemName))
         return fileSystem
 
     def createFileSystem(self, fileSystemName):
@@ -70,7 +74,7 @@ class Zfs(object):
         return self.getFileSystem(fileSystemName)
 
     def listSnapshots(self, fileSystemSpec):
-        "returns list of snapshot names, ordered oldest to newest.  FileSystem can be name or object"
+        "returns list of snapshot names, ordered oldest to newest.  fileSystemSpec can be a name or a FileSystem object"
         return [ZfsSnapshot(name)
                 for name in self.cmdRunner.call(["zfs", "list", "-Hd", "1", "-t", "snapshot", "-o", "name", "-s", "creation", asNameOrStr(fileSystemSpec)])]
 
@@ -115,17 +119,41 @@ class Zfs(object):
         "set a property"
         self.cmdRunner.call(["zfs", "set", name + "=" + str(value), fileSystemName])
 
+    def diffSnapshot(self, prevSnapshotSpec, snapshotSpec):
+        cmd = ["zfs", "diff", "-HF", asNameOrStr(prevSnapshotSpec), asNameOrStr(snapshotSpec)]
+        return self.cmdRunner.callTabSplit(cmd)
+
+
 ZfsPoolHealth = Enum("ZfsPoolHealth", ("ONLINE", "DEGRADED", "FAULTED", "OFFLINE", "REMOVED", "UNAVAIL"))
 def getZfsPoolHealth(strVal):
     return getattr(ZfsPoolHealth, strVal)
+
+class ZfsName(namedtuple("ZfsName",
+                         ("name", "pool", "fileSystem", "fsName", "snapName"))):
+    "parse a pool, file system name, or snapshot name into it's parts"
+    __slots__ = ()
+
+    def __new__(cls, name):
+        partsSnap = name.split("@", maxsplit=1)
+        partsFs = partsSnap[0].split("/", maxsplit=1)
+        if (partsSnap[0] == "") or (partsFs[0] == "") or ((len(partsSnap) > 1) and (len(partsFs) == 1)):
+            raise ZfsError(f"invaliid ZFS name, should be <pool>, <pool>/<filesys> or <pool>>/<filesys>@<snapName>: '{name}'")
+        pool = partsFs[0]
+        if len(partsFs) > 1:
+            fileSystem = partsSnap[0]
+            fsName = partsFs[1]
+        else:
+            fileSystem = fsName = None
+        snapName = partsSnap[1] if len(partsSnap) > 1 else None
+        return super(ZfsName, cls).__new__(cls, name, pool, fileSystem, fsName, snapName)
 
 class ZfsSnapshot(namedtuple("ZfsSnapshot", ("name", "fileSystem", "snapName"))):
     __slots__ = ()
 
     def __new__(cls, name):
-        parts = name.split("@")
+        parts = name.split("@", maxsplit=1)
         if len(parts) != 2:
-            raise Exception("invaliid ZFS snapshot name, should be filesystem@snapName: {}".format(name))
+            raise ZfsError(f"invaliid ZFS snapshot name, should be filesystem@snapName: '{name}'")
         return super(ZfsSnapshot, cls).__new__(cls, name, parts[0], parts[1])
 
     @staticmethod

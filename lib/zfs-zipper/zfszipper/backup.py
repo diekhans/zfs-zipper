@@ -2,6 +2,7 @@
 Classes to support zfs-zipper.  Some of these are configuration objects.
 """
 import os
+import os.path as osp
 import re
 import logging
 from .zfs import ZfsPoolHealth
@@ -19,8 +20,8 @@ class BackupRecorder(object):
         self.recordTsvFh = None
         self.outFh = outFh
         if recordTsvFile is not None:
-            if not os.path.exists(os.path.dirname(recordTsvFile)):
-                os.makedirs(os.path.dirname(recordTsvFile))
+            if not osp.exists(osp.dirname(recordTsvFile)):
+                os.makedirs(osp.dirname(recordTsvFile))
             self.recordTsvFh = open(recordTsvFile, "a", buffering=1)  # line buffered
         self._writeHeader()
 

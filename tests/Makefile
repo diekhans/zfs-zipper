@@ -27,11 +27,11 @@ vtest:
 	 sudo ${PYTHON} virtualDiskTests.py test
 
 vtestnoclean:
-	 sudo ${PYTHON} virtualDiskTests.py test
+	 sudo ${PYTHON} virtualDiskTests.py --noClean test
 
 vtestclean:
-	 sudo ${PYTHON} virtualDiskTests.py --noClean clean
+	 sudo ${PYTHON} virtualDiskTests.py clean
 
 clean: vtestclean
-	rm -rf __pycache__
+	rm -rf __pycache__ output
 

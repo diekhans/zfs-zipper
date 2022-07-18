@@ -1,7 +1,7 @@
 """
 Configuration objects.
 """
-import os
+import os.path as osp
 import time
 from collections import OrderedDict
 from zfszipper import loggingOps
@@ -12,7 +12,7 @@ class BackupConfigError(Exception):
 class SourceFileSystemConf(object):
     "a file system to backup, full ZFS file system name"
     def __init__(self, name):
-        self.name = os.path.normpath(name)
+        self.name = osp.normpath(name)
 
 class BackupPoolConf(object):
     "Configuration of a backup pool"
@@ -24,7 +24,7 @@ class BackupPoolConf(object):
 
     def determineBackupFileSystemName(self, fileSystem):
         """determine ZFS fileSystemName used to backup fileSystem (file systems can be name or zfs.FileSystem)"""
-        return os.path.normpath(self.name + "/" + (fileSystem if isinstance(fileSystem, str) else fileSystem.name))
+        return osp.normpath(self.name + "/" + (fileSystem if isinstance(fileSystem, str) else fileSystem.name))
 
 class BackupSetConf(object):
     """Configuration of a backup set.  A backup set consists of a set of file systems
@@ -112,13 +112,13 @@ class BackupConf(object):
         self.syslogLevel = loggingOps.parseLevel(syslogLevel)
         self.stderrLogging = stderrLogging
 
-    def getBackupSet(self, backupSetName):
+    def getBackupSet(self, backupSetName) -> BackupSetConf:
         for backupSet in self.backupSets:
             if backupSet.name == backupSetName:
                 return backupSet
         raise BackupConfigError("unknown backup set: {}".format(backupSetName))
 
-    def findSourceFileSystemBackupSets(self, sourceFileSystemName):
+    def findSourceFileSystemBackupSets(self, sourceFileSystemName) -> list[BackupSetConf]:
         """return list of backupSets containing source file system or empty list"""
         backupSets = []
         for backupSet in self.backupSets:
@@ -127,13 +127,14 @@ class BackupConf(object):
                 backupSets.append(fs)
         return backupSets
 
-    def _listBackupSet(self, backupSet, fh):
-        print("backup set:", backupSet.name, file=fh)
-        for sourceFs in backupSet.sourceFileSystemConfs:
-            print("\tsource fs:", sourceFs.name, file=fh)
-        for backupPool in backupSet.byBackupPoolName.values():
-            print("\tbackup pool:", backupPool.name, file=fh)
-
-    def listBackupSets(self, fh):
-        for backupSet in self.backupSets:
-            self._listBackupSet(backupSet, fh)
+def evalConfigFile(configPyFile):
+    "evaluate file and return BackupConf object"
+    configEnv = {}
+    with open(configPyFile) as fh:
+        exec(fh.read(), configEnv, configEnv)
+    config = configEnv.get("config")
+    if config is None:
+        raise Exception("config file {} doesn't set variable 'config'".format(configPyFile,))
+    if not isinstance(config, BackupConf):
+        raise Exception("config file {} variable 'config' isn't an instance of BackupConf, found: {}".format(configPyFile, str(type(config))))
+    return config

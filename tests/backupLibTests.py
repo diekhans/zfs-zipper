@@ -11,7 +11,7 @@ sys.path.insert(0, "../lib/zfs-zipper")
 from zfszipper import typeOps
 from zfszipper import loggingOps
 from zfszipper.backup import BackupSnapshot, FsBackup, BackupSetBackup, BackupRecorder
-from zfszipper.zfs import ZfsPool, ZfsSnapshot, ZfsPoolHealth
+from zfszipper.zfs import ZfsPool, ZfsSnapshot, ZfsPoolHealth, ZfsError, ZfsName
 from zfszipper.config import BackupPoolConf, BackupSetConf, SourceFileSystemConf
 from zfsMock import ZfsMock, fakeZfsFileSystem
 from zfszipper.typeOps import splitLinesToRows
@@ -67,6 +67,45 @@ class TestBackupRecorder(BackupRecorder):
     def __del__(self):
         os.unlink(self.tmpTsv)
         self.close()  # ensure closed
+
+class ZfsParseTests(unittest.TestCase):
+    def testParseName(self):
+        n = ZfsName("kettle")
+        self.assertEqual(n.name, "kettle")
+        self.assertEqual(n.pool, "kettle")
+        self.assertEqual(n.fileSystem, None)
+        self.assertEqual(n.fsName, None)
+        self.assertEqual(n.snapName, None)
+
+        n = ZfsName("kettle/markd_a")
+        self.assertEqual(n.name, "kettle/markd_a")
+        self.assertEqual(n.pool, "kettle")
+        self.assertEqual(n.fileSystem, "kettle/markd_a")
+        self.assertEqual(n.fsName, "markd_a")
+        self.assertEqual(n.snapName, None)
+
+        n = ZfsName("kettle/markd_a@zipper_2022-07-05T00:56:57_osprey2")
+        self.assertEqual(n.name, "kettle/markd_a@zipper_2022-07-05T00:56:57_osprey2")
+        self.assertEqual(n.pool, "kettle")
+        self.assertEqual(n.fileSystem, "kettle/markd_a")
+        self.assertEqual(n.fsName, "markd_a")
+        self.assertEqual(n.snapName, "zipper_2022-07-05T00:56:57_osprey2")
+
+        with self.assertRaisesRegex(ZfsError, "^invaliid ZFS name, should be <pool>, <pool>/<filesys> or <pool>>/<filesys>@<snapName>: ''$"):
+            ZfsName("")
+
+        with self.assertRaisesRegex(ZfsError, "^invaliid ZFS name, should be <pool>, <pool>/<filesys> or <pool>>/<filesys>@<snapName>: '@zipper_2022-07-05T00:56:57_osprey2'$"):
+            ZfsName("@zipper_2022-07-05T00:56:57_osprey2")
+
+        with self.assertRaisesRegex(ZfsError, "^invaliid ZFS name, should be <pool>, <pool>/<filesys> or <pool>>/<filesys>@<snapName>: 'markd_a@zipper_2022-07-05T00:56:57_osprey2'$"):
+            ZfsName("markd_a@zipper_2022-07-05T00:56:57_osprey2")
+
+        with self.assertRaisesRegex(ZfsError, "^invaliid ZFS name, should be <pool>, <pool>/<filesys> or <pool>>/<filesys>@<snapName>: '/kettle/markd_a@zipper_2022-07-05T00:56:57_osprey2'$"):
+            ZfsName("/kettle/markd_a@zipper_2022-07-05T00:56:57_osprey2")
+
+        with self.assertRaisesRegex(ZfsError, "^invaliid ZFS name, should be <pool>, <pool>/<filesys> or <pool>>/<filesys>@<snapName>: '/markd_a'$"):
+            ZfsName("/markd_a")
+
 
 class BackupSnapshotTests(unittest.TestCase):
     testPool = "swimming"

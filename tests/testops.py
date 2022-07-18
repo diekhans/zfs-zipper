@@ -2,6 +2,7 @@
 common functions used by various tests.
 """
 import os
+import os.path as osp
 import sys
 import subprocess
 import errno
@@ -19,7 +20,7 @@ def ensureDir(dir):
 def ensureFileDir(fname):
     """Ensure that the directory for a file exists, creating it (and parents) if needed.
     Returns the directory path"""
-    dir = os.path.dirname(fname)
+    dir = osp.dirname(fname)
     if len(dir) > 0:
         ensureDir(dir)
         return dir

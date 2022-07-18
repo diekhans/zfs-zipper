@@ -1,8 +1,8 @@
 """
 Code to parse and represent snapshots
 """
+import os.path as osp
 import time
-import os
 import re
 import logging
 from .typeOps import asNameStrOrNone, currentGmtTimeStr
@@ -62,7 +62,7 @@ class BackupSnapshot(namedtuple("BackupSnapshot",
         if dropFileSystem:
             fileSystemName = None
         if fileSystemName is not None:
-            fileSystemName = os.path.normpath(fileSystemName)
+            fileSystemName = osp.normpath(fileSystemName)
         return cls(fileSystemName=fileSystemName, timestamp=timestamp, backupsetName=backupsetName, oldSuffix=oldSuffix)
 
     def createFromSnapshot(self, fileSystem=None):
@@ -118,20 +118,16 @@ def asSnapshotName(snapshotSpec):
     return snapshotSpec if isinstance(snapshotSpec, str) else snapshotSpec.getSnapName()
 
 class BackupSnapshots(list):
-    "list of snapshots objects from a file system, ordered from newest to oldest"
-    def __init__(self, zfs, fileSystem=None):
-        if fileSystem is not None:
-            self._loadSnapshots(zfs, fileSystem)
+    "list of snapshots objects from a file system, ordered from newest to oldest by default"
+    def __init__(self, zfs, fileSystem, *, reverse=True):
+        for zfsSnapshot in zfs.listSnapshots(fileSystem.name):
+            self._loadSnapshot(zfs, zfsSnapshot)
+        self.sort(key=lambda s: s.timestamp, reverse=reverse)
 
     def _loadSnapshot(self, zfs, zfsSnapshot):
         if BackupSnapshot.isZipperSnapshot(zfsSnapshot.name):
             snapshot = BackupSnapshot.createFromSnapshotName(zfsSnapshot.name)
             self.append(snapshot)
-
-    def _loadSnapshots(self, zfs, fileSystem):
-        for zfsSnapshot in zfs.listSnapshots(fileSystem.name):
-            self._loadSnapshot(zfs, zfsSnapshot)
-        self.sort(key=lambda s: s.timestamp, reverse=True)
 
     def findNewestCommon(self, otherSnapshots):
         "return newest command snapshot in self that is also in otherSnapshots"

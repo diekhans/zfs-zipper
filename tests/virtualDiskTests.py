@@ -3,16 +3,20 @@ Tests that run on FreeBSD with ZFS in vnode file systems or OS/X
 on a virtual disk.  Must run as root, sadly.
 """
 import os
+import os.path as osp
 import sys
 import argparse
 import logging
 logger = logging.getLogger()
-sys.path.insert(0, os.path.normpath(os.path.dirname(sys.argv[0])) + "/../lib/zfs-zipper")
+sys.path.insert(0, osp.normpath(osp.dirname(sys.argv[0])) + "/../lib/zfs-zipper")
+from zfszipper import zfs
 from testops import ensureDir, runCmd
 if os.uname()[0] == 'Darwin':
     from macVirtualZfs import zfsVirtualCreatePool, zfsVirtualCleanup
 else:
     from freeBsdVirtualZfs import zfsVirtualCreatePool, zfsVirtualCleanup
+
+outputDir = "output"
 
 def writeConfigPy(testEtcDir, codeStr):
     ensureDir(testEtcDir)
@@ -86,7 +90,7 @@ config = BackupConf([backupSetConf],
             self._writeFile(mountPoint + "/" + relFileName, contentFunction(relFileName))
 
     def _runZfsZipper(self, configPy, *, backupSet=None, sourceFileSystems=None, snapOnly=False):
-        cmd = ["../sbin/zfs-zipper", "--conf={}".format(configPy)]
+        cmd = ["../sbin/zfs-zipper", "--conf=" + configPy]
         if sourceFileSystems is not None:
             cmd.extend(["--sourceFileSystem=" + fs for fs in sourceFileSystems])
         if snapOnly:
@@ -97,9 +101,22 @@ config = BackupConf([backupSetConf],
             cmd.append(backupSet)
         runCmd(cmd)
 
+    def _runZfsZipperDiff(self, configPy, fileSystems, outTsv):
+        cmd = ["../sbin/zfs-zipper-diff", "--conf=" + configPy, "--out=" + outTsv] + fileSystems
+        runCmd(cmd)
+
     @staticmethod
     def _upcaseFunc(x):
         return x.upper()
+
+    def _runTestDiff(self, testName, backupPool, configPy, sourceFileSystems):
+        def _mkBackupFs(srcFs):
+            return backupPool.poolName + '/' + srcFs
+
+        outTsv = osp.join(outputDir, testName + ".diff.tsv")
+        ensureDir(outputDir)
+        backupFileSystems = [_mkBackupFs(srcFs) for srcFs in sourceFileSystems]
+        self._runZfsZipperDiff(configPy, backupFileSystems, outTsv)
 
     def _test1Full1(self, sourcePool, backupPool, configPy):
         self._writeTestFiles(sourcePool, self.testSourceFs1, self.testSourceFs1Files)
@@ -118,6 +135,8 @@ config = BackupConf([backupSetConf],
         self._writeTestFiles(sourcePool, self.testSourceFs2, self.testSourceFs2Files2)
         # try restriction arguments
         self._runZfsZipper(configPy, backupSet=self.testBackupSetName, sourceFileSystems=[self.testSourceFs1, self.testSourceFs2])
+
+        self._runTestDiff("testIncr2", backupPool, configPy, [self.testSourceFs1, self.testSourceFs2])
 
     def _test1Incr3(self, sourcePool, configPy):
         self._writeTestFiles(sourcePool, self.testSourceFs1, self.testSourceFs1Files[0:2], self._upcaseFunc)

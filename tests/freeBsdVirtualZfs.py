@@ -2,6 +2,7 @@
 support for tests on ZFS in FreeBSD vnode devices
 """
 import os
+import os.path as osp
 import subprocess
 from collections import namedtuple
 from testops import ensureDir, ensureFileDir, runCmd, callCmdAllResults
@@ -39,7 +40,7 @@ class _ZfsVnodePool(object):
     def _createVnodeDisk(self):
         ensureFileDir(self.devFile)
         ensureDir(self.mntDir)
-        if os.path.exists(self.devFile):
+        if osp.exists(self.devFile):
             os.unlink(self.devFile)
         runCmd(["dd", "if=/dev/zero", "of=" + self.devFile, "bs=1m", "count=" + str(self.sizeMb)])
         runCmd(["mdconfig", "-a", "-t", "vnode", "-f", self.devFile, "-u", str(self.unitNum)])
@@ -79,7 +80,7 @@ def _destroyTestDevices(dev):
     os.unlink(dev.file)
 
 def zfsVirtualCleanup(testRootDir, poolNamePrefix):
-    testRootDir = os.path.normpath(testRootDir)
+    testRootDir = osp.normpath(testRootDir)
     for testPool in zfsFindTestPools(poolNamePrefix, testRootDir):
         zfsPoolDestroy(testPool, force=True)
     for dev in _findTestDevices(testRootDir):

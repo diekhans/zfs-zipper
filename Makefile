@@ -10,7 +10,7 @@ etcDir = ${prefix}/etc
 libPyDir = lib/zfs-zipper/zfszipper
 libPyFiles = $(wildcard ${libPyDir}/*.py)
 libPycDir = ${libPyDir}/__pycache__
-sbinProgs = sbin/zfs-zipper
+sbinProgs = sbin/zfs-zipper sbin/zfs-zipper-diff
 etcFiles = etc/zfs-zipper.conf.py
 periodicFiles = etc/periodic/daily/100.zfs-zipper
 

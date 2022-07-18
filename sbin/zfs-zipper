@@ -35,33 +35,21 @@ to allow for omitting deleted data.
 
 """
 
-import os
+import os.path as osp
 import sys
 import argparse
 import fcntl
 import logging
-myBinDir = os.path.normpath(os.path.dirname(sys.argv[0]))
-sys.path.insert(0, os.path.join(myBinDir, "../lib/zfs-zipper"))
+myBinDir = osp.normpath(osp.dirname(sys.argv[0]))
+sys.path.insert(0, osp.join(myBinDir, "../lib/zfs-zipper"))
 from zfszipper.zfs import Zfs
 from zfszipper.backup import BackupSetBackup, BackupRecorder, BackupError
-from zfszipper.config import BackupConf
+from zfszipper.config import evalConfigFile
 from zfszipper import loggingOps
 from zfszipper.cmdrunner import stdflush
 logger = logging.getLogger()
 
-defaultConfig = os.path.join(myBinDir, "../etc/zfs-zipper.conf.py")
-
-def evalConfigFile(configPyFile):
-    "evaluate file and return BackupConf object"
-    configEnv = {}
-    with open(configPyFile) as fh:
-        exec(fh.read(), configEnv, configEnv)
-    config = configEnv.get("config")
-    if config is None:
-        raise Exception("config file {} doesn't set variable 'config'".format(configPyFile,))
-    if not isinstance(config, BackupConf):
-        raise Exception("config file {} variable 'config' isn't an instance of BackupConf, found: {}".format(configPyFile, str(type(config))))
-    return config
+defaultConfig = osp.join(myBinDir, "../etc/zfs-zipper.conf.py")
 
 def parseCommand():
     usage = """Run a backup from ZFS source pools to back source pools.
@@ -74,20 +62,17 @@ def parseCommand():
                         and then create an instance of BackupConf() stored in a module-global variable `config'.""")
     parser.add_argument("--sourceFileSystem", metavar="name", dest="sourceFileSystemNames", action="append",
                         help="""Backup only this ZFS file system (not mount point).   Must specify --backupSet. This option maybe repeated.""")
-    parser.add_argument("--verboseLevel", metavar="logLevel", dest="verboseLevel", action="store", default="info",
-                        help="""syslog style level name for logging to stderr""")
     parser.add_argument("--snapOnly", dest="snapOnly", action="store_true", default=False,
                         help="""Only create source snapshots don't backup to disk.  They will be backed up on the next real backup.""")
     parser.add_argument("--allowDegraded", dest="allowDegraded", action="store_true", default=False,
                         help="""Allow backup to a degraded pool""")
     parser.add_argument("backupSetNames", metavar="backupSetName", default=[], nargs='*',
                         help="""Backup only these sets.  If not specified, all sets in with available backup pools are backed up.  With --snapOnly, all sets have snapshots made if not specified.""")
+    loggingOps.addCmdOptions(parser)
     args = parser.parse_args()
     setattr(args, "config", evalConfigFile(args.configPy))
-    if args.verboseLevel is not None:
-        args.verboseLevel = loggingOps.parseLevel(args.verboseLevel)
     if args.sourceFileSystemNames is not None:
-        args.sourceFileSystemNames = [os.path.normpath(fs) for fs in args.sourceFileSystemNames]
+        args.sourceFileSystemNames = [osp.normpath(fs) for fs in args.sourceFileSystemNames]
     checkBackupSubsetArgs(parser, args)
     return args
 
@@ -118,7 +103,6 @@ class Backup(object):
             return [self.config.getBackupSet(bs) for bs in self.backupSetNames]
         else:
             return tuple(self.config.backupSets)
-
 
     def _getAvailablePools(self):
         "get all imported or exported pools"
@@ -179,36 +163,35 @@ class Backup(object):
         for backupSetConf in backupSets:
             self._backupOneSet(backupSetConf, self.sourceFileSystemNames)
 
-def setupLogging(args):
-    someLogging = False
-    if args.config.syslogFacility is not None:
-        loggingOps.setupSyslogLogger(args.config.syslogFacility, args.config.syslogLevel, prog=os.path.basename(sys.argv[0]))
-        someLogging = True
-    if args.verboseLevel is not None:
-        loggingOps.setupStderrLogger(args.verboseLevel)
-        someLogging = True
-    # if no logging is explicitly setup, we need to send messages somewhere
-    if not someLogging:
-        loggingOps.setupStderrLogger(logging.ERROR if args.verboseLevel is None else args.verboseLevel)
-
-def doBackup(args):
-    setupLogging(args)
-    backup = Backup(args.config, args.backupSetNames, args.sourceFileSystemNames, args.snapOnly, args.allowDegraded)
+def doBackup(config, backupSetNames, sourceFileSystemNames, snapOnly, allowDegraded):
+    backup = Backup(config, backupSetNames, sourceFileSystemNames, snapOnly, allowDegraded)
     try:
         backup.runBackups()
     except Exception as ex:
         stdflush()
         logger.exception("zfs-zipper backup of failed")
-        sys.stderr.write("error: " + str(ex) + " (specify --verboseLevel=debug for more details)\n")
+        sys.stderr.write("error: " + str(ex) + " (specify --logDebug for more details)\n")
         sys.exit(1)
 
     logger.info("zfs-zipper backup of complete")
 
+def _listBackupSet(backupSet, fh):
+    print("backup set:", backupSet.name, file=fh)
+    for sourceFs in backupSet.sourceFileSystemConfs:
+        print("\tsource fs:", sourceFs.name, file=fh)
+    for backupPool in backupSet.byBackupPoolName.values():
+        print("\tbackup pool:", backupPool.name, file=fh)
+
+def doListBackupSets(config, fh):
+    for backupSet in config.backupSets:
+        _listBackupSet(backupSet, fh)
+
 def main(args):
+    loggingOps.setupFromCmd(args)
     if args.listSets:
-        args.config.listBackupSets(sys.stdout)
+        doListBackupSets(args.config, sys.stdout)
     else:
-        doBackup(args)
+        doBackup(args.config, args.backupSetNames, args.sourceFileSystemNames, args.snapOnly, args.allowDegraded)
 
 
 main(parseCommand())

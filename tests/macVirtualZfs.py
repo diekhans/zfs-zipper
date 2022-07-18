@@ -2,6 +2,7 @@
 support for tests on ZFS in Mac OS/X virtual devices
 """
 import os
+import os.path as osp
 import re
 import time
 from collections import namedtuple
@@ -53,7 +54,7 @@ class _ZfsVirtualPool(object):
     def _createVnodeDisk(self):
         ensureFileDir(self.devFile)
         ensureDir(self.mntDir)
-        if os.path.exists(self.devFile):
+        if osp.exists(self.devFile):
             os.unlink(self.devFile)
         # must force HFS+ as partitions work with the way we create ZFS
         runCmd(["hdiutil", "create", "-fs", "HFS+", "-size", str(self.sizeMb) + "m", self.devFile])
@@ -95,7 +96,7 @@ def _destroyTestDevices(dev):
     os.unlink(dev.file)
 
 def zfsVirtualCleanup(testRootDir, poolNamePrefix):
-    testRootDir = os.path.normpath(testRootDir)
+    testRootDir = osp.normpath(testRootDir)
     for testPool in zfsFindTestPools(poolNamePrefix, testRootDir):
         zfsPoolDestroy(testPool, force=True)
     for dev in _findTestDevices(testRootDir):

@@ -1,0 +1,81 @@
+#!/usr/bin/env python3
+"""Generate diffs of zfs-zipper snapshots.
+"""
+import os.path as osp
+import sys
+import argparse
+import logging
+import csv
+myBinDir = osp.normpath(osp.dirname(sys.argv[0]))
+sys.path.insert(0, osp.join(myBinDir, "../lib/zfs-zipper"))
+from zfszipper.zfs import Zfs
+from zfszipper.config import evalConfigFile
+from zfszipper.snapshots import BackupSnapshots
+from zfszipper import loggingOps
+from zfszipper.cmdrunner import stdflush
+logger = logging.getLogger()
+
+defaultConfig = osp.join(myBinDir, "../etc/zfs-zipper.conf.py")
+
+def parseCommand():
+    usage = """Generate diffs of zfs-zipper snapshots.  Snapshots on either
+    the source or backup file systems maybe diffed.
+
+    """
+    parser = argparse.ArgumentParser(description=usage)
+    parser.add_argument("--conf", default=defaultConfig, dest="configPy",
+                        help="""Configuration file written in Python.  It should do a `from zfszipper.config import *'
+                        and then create an instance of BackupConf() stored in a module-global variable `config'.""")
+    parser.add_argument("--out", default="/dev/stdout",
+                        help="""write output to this file in TSV format""")
+    parser.add_argument("fileSystemNames", nargs='+',
+                        help="""file systems to diff, in the form pool/filesys""")
+    loggingOps.addCmdOptions(parser)
+    args = parser.parse_args()
+    setattr(args, "config", evalConfigFile(args.configPy))
+    return args
+
+tsvHeader = ("snapshot", "chg", "typ", "path", "newPath")
+
+def reportDiff(snapshot, diff, tsvFh):
+    row = [snapshot.name] + diff
+    if len(diff) < 4:
+        row.append('')
+    tsvFh.writerow(row)
+
+def diffSnapshot(zfs, prevSnapshot, snapshot, tsvFh):
+    for diff in zfs.diffSnapshot(prevSnapshot, snapshot):
+        reportDiff(snapshot, diff, tsvFh)
+
+def diffFileSystem(config, zfs, fileSystemName, tsvFh):
+    fileSystem = zfs.getFileSystem(fileSystemName)
+    snapshots = BackupSnapshots(zfs, fileSystem, reverse=False)
+    if len(snapshots) > 0:
+        prevSnapshot = snapshots[0]
+        for snapshot in snapshots[1:]:
+            diffSnapshot(zfs, prevSnapshot, snapshot, tsvFh)
+            prevSnapshot = snapshot
+
+def doDiffs(config, fileSystemNames, outFh):
+    tsvFh = csv.writer(outFh, dialect='excel-tab')
+    tsvFh.writerow(tsvHeader)
+    zfs = Zfs()
+    for fileSystemName in fileSystemNames:
+        diffFileSystem(config, zfs, fileSystemName, tsvFh)
+
+def zfsZipperDiff(config, outFile, fileSystemNames):
+    try:
+        with open(outFile, 'w') as outFh:
+            doDiffs(config, fileSystemNames, outFh)
+    except Exception as ex:
+        stdflush()
+        logger.exception("zfs-zipper diff failed")
+        sys.stderr.write("error: " + str(ex) + " (specify --logDebug for more details)\n")
+        sys.exit(1)
+
+def main(args):
+    loggingOps.setupFromCmd(args)
+    zfsZipperDiff(args.config, args.out, args.fileSystemNames)
+
+
+main(parseCommand())
