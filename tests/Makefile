@@ -33,5 +33,5 @@ vtestclean:
 	 sudo ${PYTHON} virtualDiskTests.py clean
 
 clean: vtestclean
-	rm -rf __pycache__ output
+	sudo rm -rf __pycache__ output
 
