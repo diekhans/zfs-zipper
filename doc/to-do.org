@@ -1,7 +1,8 @@
 * have ZFS subprocess errors raise ZfsError
 * no reason for virtualDiskTests.py to be a class, except for config
 * use pipettor instead of subprocess
-* remove "zfs-zipper" from "lib/zfs-zipper/zfszipper/
+* would like to remove "zfs-zipper" from "lib/zfs-zipper/zfszipper/", however this is
+because of the way it is installed in /usr/local/lib
 * less verbose dumps on errors by default, removing stack traces on certain exceptions
 change:
 logger.exception("zfs-zipper backup of failed")
