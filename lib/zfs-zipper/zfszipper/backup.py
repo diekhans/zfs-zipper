@@ -5,6 +5,7 @@ import os
 import os.path as osp
 import re
 import logging
+import time
 from .zfs import ZfsPoolHealth
 from .snapshots import BackupSnapshot, BackupSnapshots
 from .typeOps import asNameStrOrNone, asStrOrEmpty, currentGmtTimeStr
@@ -277,6 +278,12 @@ class BackupSetBackup(object):
                 raise BackupError("backup pool degraded: {}".format(backupPool.name))
         return backupPool, needToImport
 
+    def _exportBackupPool(self, backupPool):
+        # sometimes this is busy even after backup completes, just wait and
+        # then force
+        time.sleep(5.0)
+        self.zfs.exportPool(backupPool, force=True)
+
     def backup(self, sourceFileSystemConfs=None):
         """specifying sourceFileSystemConfs can limit the file systems backed
         up to a subset."""
@@ -288,7 +295,7 @@ class BackupSetBackup(object):
                 self._fsBackup(sourceFileSystemConf, backupPool)
         finally:
             if needToImport:
-                self.zfs.exportPool(backupPool)
+                self._exportBackupPool(backupPool)
 
     def _fsSnapOnly(self, sourceFileSystemConf):
         fsBackup = FsBackup(self.zfs, self.recorder, self.backupSetConf,

@@ -23,14 +23,15 @@ zfsLocalSystemTests:
 	${PYTHON} zfsLocalSystemTests.py
 
 # virtual disk test must be run as root
+# also seems to want to read from stdin, so redirect
 vtest:
-	 sudo ${PYTHON} virtualDiskTests.py test
+	 sudo ${PYTHON} virtualDiskTests.py test </dev/stdin
 
 vtestnoclean:
-	 sudo ${PYTHON} virtualDiskTests.py --noClean test
+	 sudo ${PYTHON} virtualDiskTests.py --noClean test </dev/stdin
 
 vtestclean:
-	 sudo ${PYTHON} virtualDiskTests.py clean
+	 sudo ${PYTHON} virtualDiskTests.py clean </dev/stdin
 
 clean: vtestclean
 	sudo rm -rf __pycache__ output
