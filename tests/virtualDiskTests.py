@@ -9,7 +9,6 @@ import argparse
 import logging
 logger = logging.getLogger()
 sys.path.insert(0, osp.normpath(osp.dirname(sys.argv[0])) + "/../lib/zfs-zipper")
-from zfszipper import zfs
 from testops import ensureDir, runCmd
 if os.uname()[0] == 'Darwin':
     from macVirtualZfs import zfsVirtualCreatePool, zfsVirtualCleanup

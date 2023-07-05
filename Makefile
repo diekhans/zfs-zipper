@@ -48,7 +48,7 @@ clean:
 
 flake8: link
 lint:
-	${PYTHON} -m flake8 ${sbinProgs} lib tests
+	${PYTHON} -m flake8 --color=never ${sbinProgs} lib tests
 
 test:
 	cd tests && ${MAKE} test
