@@ -1,3 +1,4 @@
+* switch to pipettor
 * test now fail because snapshots need to be mounted.
 * allow for multiple limited to a particular backup set to allow for live backup
 * allow for backup to different file system name so the individual base file system names don't cause confusion
