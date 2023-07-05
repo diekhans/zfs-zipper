@@ -82,9 +82,9 @@ class Zfs(object):
         "import specified pool"
         self.cmdRunner.call(["zpool", "import", asNameOrStr(poolSpec)])
 
-    def exportPool(self, poolSpec):
+    def exportPool(self, poolSpec, *, force=False):
         "export specified pool"
-        self.cmdRunner.call(["zpool", "export", asNameOrStr(poolSpec)])
+        self.cmdRunner.call(["zpool", "export"] + (["-f"] if force else []) + [asNameOrStr(poolSpec)])
 
     def createSnapshot(self, snapshotSpec):
         self.cmdRunner.call(["zfs", "snapshot", asNameOrStr(snapshotSpec)])

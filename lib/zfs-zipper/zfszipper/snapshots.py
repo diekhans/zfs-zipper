@@ -18,7 +18,7 @@ class BackupSnapshot(namedtuple("BackupSnapshot",
     objects, but not the actually snapshot.
 
     If zfs terminology the name of the snapshot includes the file system
-    the name without it is the snapname, which is out backupsetName.
+    the name without it is the snapname, which is our backupsetName.
     """
     # FIXME: terminology is still confusing with much of the code used
     # snapshotName rather than backupsetName
