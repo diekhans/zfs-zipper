@@ -8,8 +8,8 @@ systems to back up.
 The source file system structure is reproduced under the top level BackupPool
 file system. Snapshots of the source file systems are use to manage the backup
 on the BackupPool file systems.  The first back is conceptually a `full'
-backup, but this could start at any snapshot.  Subsequent backups are sent
-as deltas between snapshots.
+backup, but this could start at any snapshot.  Subsequent backups are sent as
+deltas between snapshots.
 
 Snapshots are named in the form:
     zipper_<GMT>_<backupset>
@@ -52,7 +52,7 @@ logger = logging.getLogger()
 defaultConfig = osp.join(myBinDir, "../etc/zfs-zipper.conf.py")
 
 def parseCommand():
-    usage = """Run a backup from ZFS source pools to back source pools.
+    usage = """Create snapshots on ZFS pools and send to backup pools.
     """
     parser = argparse.ArgumentParser(description=usage)
     parser.add_argument("--list", "-l", dest="listSets", action="store_true", default=False,
