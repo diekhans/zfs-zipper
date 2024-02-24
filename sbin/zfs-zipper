@@ -60,11 +60,11 @@ def parseCommand():
     parser.add_argument("--conf", default=defaultConfig, dest="configPy",
                         help="""Configuration file written in Python.  It should do a `from zfszipper.config import *'
                         and then create an instance of BackupConf() stored in a module-global variable `config'.""")
-    parser.add_argument("--sourceFileSystem", metavar="name", dest="sourceFileSystemNames", action="append",
+    parser.add_argument("--source-file-system", metavar="name", dest="sourceFileSystemNames", action="append",
                         help="""Backup only this ZFS file system (not mount point).   Must specify --backupSet. This option maybe repeated.""")
-    parser.add_argument("--snapOnly", dest="snapOnly", action="store_true", default=False,
+    parser.add_argument("--snap-only", dest="snapOnly", action="store_true", default=False,
                         help="""Only create source snapshots don't backup to disk.  They will be backed up on the next real backup.""")
-    parser.add_argument("--allowDegraded", dest="allowDegraded", action="store_true", default=False,
+    parser.add_argument("--allow-degraded", dest="allowDegraded", action="store_true", default=False,
                         help="""Allow backup to a degraded pool""")
     parser.add_argument("backupSetNames", metavar="backupSetName", default=[], nargs='*',
                         help="""Backup only these sets.  If not specified, all sets in with available backup pools are backed up.  With --snapOnly, all sets have snapshots made if not specified.""")

@@ -91,9 +91,9 @@ config = BackupConf([backupSetConf],
     def _runZfsZipper(self, configPy, *, backupSet=None, sourceFileSystems=None, snapOnly=False):
         cmd = ["../sbin/zfs-zipper", "--conf=" + configPy]
         if sourceFileSystems is not None:
-            cmd.extend(["--sourceFileSystem=" + fs for fs in sourceFileSystems])
+            cmd.extend(["--source-file-system=" + fs for fs in sourceFileSystems])
         if snapOnly:
-            cmd.append("--snapOnly")
+            cmd.append("--snap-only")
         if self.zipperLogLevel is not None:
             cmd.append("--logLevel=" + self.zipperLogLevel)
         if backupSet is not None:
