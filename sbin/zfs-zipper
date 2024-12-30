@@ -78,7 +78,7 @@ def parseCommand():
 
 def checkBackupSubsetArgs(parser, args):
     if (args.sourceFileSystemNames is not None) and (len(args.backupSetNames) != 1):
-        parser.error("must specify a single backUpSet with --sourceFileSystemName")
+        parser.error("must specify a single backUpSet with --source-file-system-name")
     for backupSetName in args.backupSetNames:
         backupSetConf = args.config.getBackupSet(backupSetName)  # error if not found
     if args.sourceFileSystemNames is not None:
