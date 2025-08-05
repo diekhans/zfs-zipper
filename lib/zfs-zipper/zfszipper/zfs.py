@@ -25,7 +25,7 @@ class Zfs(object):
     def _listExportedParsePool(self, poolName, lineIter):
         "parse next pool out of lines from zpool import"
         for line in lineIter:
-            m = re.match("^  state: (.*)$", line)
+            m = re.match("^ *state: (.*)$", line)
             if m is not None:
                 return ZfsPool(poolName, False, getZfsPoolHealth(m.group(1)))
         raise ZfsError("zpool export parsing error: `state:' not found")
@@ -35,7 +35,7 @@ class Zfs(object):
         exported = []
         lineIter = iter(self.cmdRunner.call(["zpool", "import"]))
         for line in lineIter:
-            m = re.match("^   pool: (.*)$", line)
+            m = re.match("^ *pool: (.*)$", line)
             if m is not None:
                 exported.append(self._listExportedParsePool(m.group(1), lineIter))
         return exported
